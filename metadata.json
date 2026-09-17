@@ -1,0 +1,6 @@
+{
+  "name": "Arthur’s AI Workforce - Google Business Profile Manager",
+  "description": "Multi-tenant Google Business Profile management platform for businesses to inspect profiles, analyze search performance, propose improvements, automate daily operations, and manage subscriptions with isolated customer workspaces.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

@@ -1,0 +1,43 @@
+@import "tailwindcss";
+
+@theme {
+  --color-brand-navy: #111738;
+  --color-brand-navy-dark: #0b0f26;
+  --color-brand-navy-card: #18204c;
+  --color-brand-navy-elevated: #1e285e;
+  --color-brand-gold: #D4AF37;
+  --color-brand-gold-light: #f7e7a9;
+  --color-brand-gold-dim: #997c22;
+  --color-brand-cyan: #00F3FF;
+  --color-brand-cyan-glow: rgba(0, 243, 255, 0.25);
+}
+
+:root {
+  color-scheme: dark;
+}
+
+body {
+  background-color: #111738;
+  color: #f8fafc;
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+  min-height: 100vh;
+}
+
+/* Custom scrollbar for Arthur's Creatives deep navy UI */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #0b0f26;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #25336e;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #D4AF37;
+}
