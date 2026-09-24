@@ -119,6 +119,37 @@ export interface RepairProposal {
   verificationStep?: string;
 }
 
+export interface MonthlyPerformanceMetric {
+  month: string; // e.g. "Apr 2026"
+  shortMonth: string; // e.g. "Apr"
+  views: number; // Search + Maps views (impressions)
+  searchViews: number;
+  mapsViews: number;
+  clicks: number; // Total clicks (website + call buttons)
+  websiteClicks: number;
+  callClicks: number;
+  actions: number; // Total customer actions on profile
+}
+
+export interface DailyPerformanceMetric {
+  date: string; // "Aug 25", "Sep 1", etc.
+  fullDate: string; // "Aug 25, 2026"
+  isoDate: string; // "2026-08-25"
+  dayOfWeek: string; // "Tue", "Wed", etc.
+  searchImpressions: number;
+  mapsImpressions: number;
+  totalImpressions: number;
+  websiteClicks: number;
+  callClicks: number;
+  totalClicks: number;
+  actions: number;
+  cumulativeImpressions: number;
+  cumulativeClicks: number;
+  movingAverage7d?: number;
+  growthVsStartPercent?: number;
+  isProcessingWindow?: boolean; // Last 48-72h subject to Google Business Profile latency
+}
+
 export interface SearchInsightMetrics {
   reportingPeriod: string;
   lastSyncAt: string;
@@ -129,6 +160,8 @@ export interface SearchInsightMetrics {
   callClicks: number | null; // explicitly labeled as button clicks, not confirmed customers
   websiteClicks: number | null;
   directionRequests: number | null;
+  monthlyHistory?: MonthlyPerformanceMetric[];
+  dailyHistory?: DailyPerformanceMetric[];
   comparison: {
     priorPeriodLabel: string;
     impressionsChangePercent: number | null;

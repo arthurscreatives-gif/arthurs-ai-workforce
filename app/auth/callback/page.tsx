@@ -71,9 +71,28 @@ function CallbackContent() {
           <AlertCircle className="w-12 h-12 text-rose-400" />
           <h2 className="text-lg font-semibold text-rose-300">Connection Failed</h2>
           <p className="text-sm text-slate-300">{message}</p>
+
+          {error === 'access_denied' && (
+            <div className="mt-2 text-left bg-[#0b0f26] p-3 rounded-lg border border-amber-500/40 text-xs text-slate-300 space-y-2">
+              <strong className="text-amber-300 block">Why did this happen? (Error 403: access_denied)</strong>
+              <p className="text-[11px] text-slate-400">
+                Google Cloud OAuth Consent Screen is in <strong>Testing</strong> status. Google strictly blocks any account not added to the <strong>Test users</strong> list.
+              </p>
+              <div className="text-[11px] space-y-1">
+                <p className="font-semibold text-[#00F3FF]">Immediate Fix:</p>
+                <ol className="list-decimal pl-4 space-y-0.5 text-slate-300">
+                  <li>Open <a href="https://console.cloud.google.com/apis/credentials/consent" target="_blank" rel="noopener noreferrer" className="text-[#00F3FF] underline">Google Cloud Console → OAuth consent screen</a>.</li>
+                  <li>Scroll to <strong>Test users</strong>, click <strong>+ ADD USERS</strong>.</li>
+                  <li>Add <code className="text-amber-300">arthurscreatives@gmail.com</code> and save.</li>
+                  <li>Try signing in again.</li>
+                </ol>
+              </div>
+            </div>
+          )}
+
           <button
             onClick={() => window.close()}
-            className="mt-4 px-4 py-2 bg-[#25336e] hover:bg-[#2e3e85] text-white text-xs font-medium rounded-lg transition-colors"
+            className="mt-4 px-4 py-2 bg-[#25336e] hover:bg-[#2e3e85] text-white text-xs font-medium rounded-lg transition-colors cursor-pointer"
           >
             Close Window
           </button>

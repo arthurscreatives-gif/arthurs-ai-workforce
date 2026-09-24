@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { ShieldCheck, PauseCircle, PlayCircle, KeyRound, Sparkles } from 'lucide-react';
+import { ShieldCheck, PauseCircle, PlayCircle, KeyRound, Sparkles, Radio, Bot } from 'lucide-react';
 import { ConnectionStatus, AppSettings } from '@/types/business-profile';
 
 interface HeaderProps {
@@ -11,6 +11,8 @@ interface HeaderProps {
   onTogglePauseAutomation: () => void;
   onOpenConnectModal: () => void;
   onOpenWorkforceBuilder?: (mode: 'build' | 'explore') => void;
+  onOpenLiveVoice?: () => void;
+  onOpenAIChat?: () => void;
   workspaceName?: string;
   userRole?: 'owner' | 'customer';
   onOpenBilling?: () => void;
@@ -26,6 +28,8 @@ export function Header({
   onTogglePauseAutomation,
   onOpenConnectModal,
   onOpenWorkforceBuilder,
+  onOpenLiveVoice,
+  onOpenAIChat,
   workspaceName,
   userRole,
   onOpenBilling,
@@ -183,6 +187,30 @@ export function Header({
               title="Switch Workspace or Sign Out"
             >
               <span>Switch</span>
+            </button>
+          )}
+
+          {/* Live Voice Conversation CTA (gemini-3.8-live) */}
+          {onOpenLiveVoice && (
+            <button
+              onClick={onOpenLiveVoice}
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-gradient-to-r from-[#00F3FF] to-[#00c8d4] hover:brightness-110 text-[#0b0f26] font-bold rounded-lg transition-all shadow-sm shadow-[#00F3FF]/25 cursor-pointer"
+              title="Launch Live Voice Conversation with gemini-3.8-live"
+            >
+              <Radio className="w-3.5 h-3.5 text-[#0b0f26] animate-pulse" />
+              <span>Live Voice</span>
+            </button>
+          )}
+
+          {/* AI Agents Chat CTA */}
+          {onOpenAIChat && (
+            <button
+              onClick={onOpenAIChat}
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-[#18204c] hover:bg-[#25336e] text-slate-200 border border-slate-700 font-semibold rounded-lg transition-colors cursor-pointer"
+              title="Open Multi-Turn Gemini AI Workforce Chat"
+            >
+              <Bot className="w-3.5 h-3.5 text-[#D4AF37]" />
+              <span>AI Chat</span>
             </button>
           )}
 

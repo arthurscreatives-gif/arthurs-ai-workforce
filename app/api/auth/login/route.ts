@@ -1,10 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { checkRateLimit, createSession, sanitizeInput } from '@/lib/auth-session';
-import { getUserByEmail, getWorkspacesByUserId, saveUser } from '@/lib/workspace-store';
+import {
+  getUserByEmail,
+  getWorkspacesByUserId,
+  saveUser,
+  createWorkspaceForUser,
+} from '@/lib/workspace-store';
 
 export async function POST(req: NextRequest) {
   const ip = req.headers.get('x-forwarded-for') || 'anon-login';
-  const rate = checkRateLimit(`login_${ip}`, 10, 60);
+  const rate = checkRateLimit(`login_${ip}`, 15, 60);
   if (!rate.allowed) {
     return NextResponse.json(
       { error: `Too many sign-in attempts. Please wait ${rate.resetSeconds}s.` },
@@ -17,30 +22,56 @@ export async function POST(req: NextRequest) {
     const email = sanitizeInput(body.email?.toLowerCase());
 
     if (!email || !email.includes('@')) {
-      return NextResponse.json({ error: 'Valid email is required.' }, { status: 400 });
+      return NextResponse.json({ error: 'Valid email address is required.' }, { status: 400 });
     }
 
-    const user = getUserByEmail(email);
+    let user = getUserByEmail(email);
+    let activeWorkspace;
+
     if (!user) {
-      return NextResponse.json(
-        { error: 'No account found with this email. Please check your spelling or register.' },
-        { status: 404 }
-      );
-    }
+      // Auto-provision fresh account and clean zero-data workspace for friction-free access
+      const userId = `user_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
+      const namePart = email.split('@')[0].replace(/[._-]/g, ' ');
+      const formattedName = namePart.charAt(0).toUpperCase() + namePart.slice(1);
+      user = {
+        id: userId,
+        email,
+        fullName: formattedName,
+        role: 'customer',
+        emailVerified: true,
+        createdAt: new Date().toISOString(),
+        lastLoginAt: new Date().toISOString(),
+      };
+      saveUser(user);
 
-    // Update last login
-    user.lastLoginAt = new Date().toISOString();
-    saveUser(user);
+      activeWorkspace = createWorkspaceForUser({
+        userId: user.id,
+        userEmail: email,
+        businessName: `${formattedName}'s Business`,
+        role: 'customer',
+        planId: 'starter',
+        planName: 'Starter AI Workforce',
+        priceInCents: 4900,
+      });
+    } else {
+      user.lastLoginAt = new Date().toISOString();
+      saveUser(user);
 
-    // Get active workspace for user
-    const userWorkspaces = getWorkspacesByUserId(user.id);
-    const activeWorkspace = userWorkspaces[0];
+      const userWorkspaces = getWorkspacesByUserId(user.id);
+      activeWorkspace = userWorkspaces[0];
 
-    if (!activeWorkspace) {
-      return NextResponse.json({ error: 'No workspace assigned to user.' }, { status: 404 });
+      if (!activeWorkspace) {
+        activeWorkspace = createWorkspaceForUser({
+          userId: user.id,
+          userEmail: email,
+          businessName: `${user.fullName}'s Business`,
+          role: user.role,
+        });
+      }
     }
 
     const token = createSession(user.id, activeWorkspace.id);
+    const userWorkspaces = getWorkspacesByUserId(user.id);
 
     const res = NextResponse.json({
       success: true,

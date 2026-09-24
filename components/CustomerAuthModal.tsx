@@ -3,37 +3,63 @@
 import React, { useState } from 'react';
 import {
   X,
+  ShieldCheck,
+  Building2,
   Mail,
   User as UserIcon,
-  Building2,
-  Lock,
   ArrowRight,
-  Sparkles,
-  ShieldCheck,
   AlertCircle,
-  CheckCircle2,
+  Sparkles,
+  Check,
 } from 'lucide-react';
 import { User, Workspace } from '@/types/workspace';
+import { LegalTab } from '@/components/LegalPagesModal';
 
 interface CustomerAuthModalProps {
   isOpen: boolean;
   initialMode: 'signin' | 'register';
+  initialPlanId?: string;
   onClose: () => void;
   onAuthSuccess: (user: User, workspace: Workspace, token: string) => void;
+  onOpenPolicy?: (tab: LegalTab) => void;
 }
+
+const PLANS = [
+  { id: 'starter', name: 'Starter', price: '$49/mo', desc: '1 Location • Drift Audits • Repairs' },
+  { id: 'growth', name: 'Growth', price: '$99/mo', desc: '3 Locations • Content Engine • Alerts', popular: true },
+  { id: 'enterprise', name: 'Enterprise', price: '$199/mo', desc: '10 Locations • Multi-Agent • Full Queue' },
+];
 
 export function CustomerAuthModal({
   isOpen,
   initialMode,
+  initialPlanId = 'starter',
   onClose,
   onAuthSuccess,
+  onOpenPolicy,
 }: CustomerAuthModalProps) {
   const [mode, setMode] = useState<'signin' | 'register'>(initialMode);
   const [email, setEmail] = useState('');
   const [fullName, setFullName] = useState('');
   const [businessName, setBusinessName] = useState('');
+  const [selectedPlan, setSelectedPlan] = useState<string>(initialPlanId);
+  const [termsAccepted, setTermsAccepted] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+
+  const [prevInitialMode, setPrevInitialMode] = useState(initialMode);
+  if (prevInitialMode !== initialMode) {
+    setPrevInitialMode(initialMode);
+    setMode(initialMode);
+  }
+
+  const [prevInitialPlanId, setPrevInitialPlanId] = useState(initialPlanId);
+  if (prevInitialPlanId !== initialPlanId) {
+    setPrevInitialPlanId(initialPlanId);
+    if (initialPlanId) {
+      setSelectedPlan(initialPlanId);
+    }
+  }
 
   if (!isOpen) return null;
 
@@ -66,13 +92,24 @@ export function CustomerAuthModal({
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMsg(null);
+
+    if (!termsAccepted) {
+      setErrorMsg('You must agree to the Terms of Service and Privacy Policy to activate your account.');
+      return;
+    }
+
     setIsLoading(true);
 
     try {
       const res = await fetch('/api/auth/register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, fullName, businessName }),
+        body: JSON.stringify({
+          email,
+          fullName,
+          businessName,
+          planId: selectedPlan,
+        }),
       });
 
       const data = await res.json();
@@ -89,60 +126,41 @@ export function CustomerAuthModal({
     }
   };
 
-  const handleQuickDemoSign = async (demoEmail: string) => {
-    setEmail(demoEmail);
-    setErrorMsg(null);
-    setIsLoading(true);
-
-    try {
-      const res = await fetch('/api/auth/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: demoEmail }),
-      });
-
-      const data = await res.json();
-      if (!res.ok) {
-        throw new Error(data.error || 'Failed to sign in');
-      }
-
-      onAuthSuccess(data.user, data.workspace, data.token);
-      onClose();
-    } catch (err: any) {
-      setErrorMsg(err.message || 'Failed to sign in');
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[#0b0f26]/80 backdrop-blur-sm animate-in fade-in duration-200">
-      <div className="relative w-full max-w-md bg-[#18204c] border border-slate-700 rounded-3xl p-6 sm:p-8 shadow-2xl space-y-6">
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="auth-modal-title"
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-fadeIn"
+    >
+      <div className="relative w-full max-w-md bg-[#0b0f26] border border-slate-700 rounded-3xl p-6 sm:p-8 shadow-2xl space-y-6 max-h-[92vh] overflow-y-auto">
         {/* Close Button */}
         <button
           onClick={onClose}
-          className="absolute top-6 right-6 p-2 rounded-xl text-slate-400 hover:text-white hover:bg-[#111738] transition-colors cursor-pointer"
+          aria-label="Close Authentication Dialog"
+          className="absolute top-5 right-5 text-slate-400 hover:text-white transition-colors cursor-pointer p-1 rounded-lg focus-visible:ring-2 focus-visible:ring-[#00F3FF]"
         >
           <X className="w-5 h-5" />
         </button>
 
         {/* Header */}
-        <div className="space-y-1">
-          <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-[#111738] border border-[#00F3FF]/30 text-[11px] font-mono text-[#00F3FF]">
-            <Sparkles className="w-3 h-3" />
-            <span>Arthur’s AI Workforce</span>
+        <div className="text-center space-y-2">
+          <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-[#D4AF37] to-[#00F3FF] p-[2px] mx-auto shadow-lg shadow-[#00F3FF]/20">
+            <div className="w-full h-full bg-[#0b0f26] rounded-[14px] flex items-center justify-center">
+              <Sparkles className="w-6 h-6 text-[#00F3FF]" />
+            </div>
           </div>
-          <h2 className="text-xl font-bold text-white">
-            {mode === 'signin' ? 'Sign in to Your Workspace' : 'Create Your Customer Account'}
+          <h2 id="auth-modal-title" className="text-xl font-bold text-white tracking-tight">
+            {mode === 'signin' ? 'Sign In to Workspace' : 'Select Plan & Start Trial'}
           </h2>
           <p className="text-xs text-slate-400">
             {mode === 'signin'
-              ? 'Enter your registered email address to access your business profile workspace.'
-              : 'Set up an isolated workspace for your business with a 14-day test trial.'}
+              ? 'Enter your account email to access your private business control center.'
+              : 'Choose your package to launch your 14-day free trial with zero mock data.'}
           </p>
         </div>
 
-        {/* Tab Switcher */}
+        {/* Tab switch */}
         <div className="flex bg-[#111738] p-1 rounded-xl border border-slate-800 text-xs font-semibold">
           <button
             type="button"
@@ -150,9 +168,9 @@ export function CustomerAuthModal({
               setMode('signin');
               setErrorMsg(null);
             }}
-            className={`flex-1 py-2 rounded-lg transition-all cursor-pointer ${
+            className={`flex-1 py-2 rounded-lg transition-all cursor-pointer focus-visible:ring-2 focus-visible:ring-[#00F3FF] focus:outline-none ${
               mode === 'signin'
-                ? 'bg-[#18204c] text-white shadow-sm'
+                ? 'bg-[#18204c] text-white shadow-sm font-bold'
                 : 'text-slate-400 hover:text-white'
             }`}
           >
@@ -164,19 +182,22 @@ export function CustomerAuthModal({
               setMode('register');
               setErrorMsg(null);
             }}
-            className={`flex-1 py-2 rounded-lg transition-all cursor-pointer ${
+            className={`flex-1 py-2 rounded-lg transition-all cursor-pointer focus-visible:ring-2 focus-visible:ring-[#00F3FF] focus:outline-none ${
               mode === 'register'
-                ? 'bg-[#18204c] text-white shadow-sm'
+                ? 'bg-[#18204c] text-white shadow-sm font-bold'
                 : 'text-slate-400 hover:text-white'
             }`}
           >
-            Create Account
+            Start Free Trial
           </button>
         </div>
 
         {/* Error notification */}
         {errorMsg && (
-          <div className="p-3 bg-rose-500/10 border border-rose-500/40 rounded-xl text-xs text-rose-300 flex items-start gap-2">
+          <div
+            role="alert"
+            className="p-3 bg-rose-500/10 border border-rose-500/40 rounded-xl text-xs text-rose-300 flex items-start gap-2"
+          >
             <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5 text-rose-400" />
             <span>{errorMsg}</span>
           </div>
@@ -186,101 +207,113 @@ export function CustomerAuthModal({
         {mode === 'signin' && (
           <form onSubmit={handleSignIn} className="space-y-4">
             <div className="space-y-1.5">
-              <label className="text-xs font-semibold text-slate-300 flex items-center gap-1.5">
+              <label htmlFor="auth-email-signin" className="text-xs font-semibold text-slate-300 flex items-center gap-1.5">
                 <Mail className="w-3.5 h-3.5 text-slate-400" />
                 <span>Account Email</span>
               </label>
               <input
+                id="auth-email-signin"
                 type="email"
                 required
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="name@company.com"
-                className="w-full px-3.5 py-2.5 bg-[#111738] border border-slate-700 rounded-xl text-xs text-white placeholder-slate-500 focus:outline-none focus:border-[#00F3FF]"
+                className="w-full px-3.5 py-2.5 bg-[#111738] border border-slate-700 rounded-xl text-xs text-white placeholder-slate-500 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#00F3FF]"
               />
             </div>
 
             <button
               type="submit"
               disabled={isLoading}
-              className="w-full py-3 bg-gradient-to-r from-[#00F3FF] to-blue-500 hover:from-[#00F3FF]/90 text-[#0b0f26] font-bold text-xs rounded-xl shadow-lg shadow-[#00F3FF]/20 flex items-center justify-center gap-2 transition-all cursor-pointer disabled:opacity-50"
+              className="w-full py-3 bg-gradient-to-r from-[#00F3FF] to-blue-500 hover:from-[#00F3FF]/90 text-[#0b0f26] font-bold text-xs rounded-xl shadow-lg shadow-[#00F3FF]/20 flex items-center justify-center gap-2 transition-all cursor-pointer disabled:opacity-50 focus-visible:ring-2 focus-visible:ring-white focus:outline-none"
             >
-              <span>{isLoading ? 'Signing In...' : 'Continue to Workspace'}</span>
+              <span>{isLoading ? 'Signing In...' : 'Continue to Control Center'}</span>
               <ArrowRight className="w-3.5 h-3.5" />
             </button>
-
-            {/* Quick-switch tester buttons for evaluation */}
-            <div className="pt-2 border-t border-slate-800 space-y-2">
-              <span className="text-[10px] uppercase font-mono text-slate-400 block text-center">
-                Fast Workspace Switcher (Testing & Review)
-              </span>
-              <div className="grid grid-cols-2 gap-2">
-                <button
-                  type="button"
-                  onClick={() => handleQuickDemoSign('arthurscreatives@gmail.com')}
-                  className="px-2.5 py-2 bg-[#111738] hover:bg-[#202b66] border border-[#D4AF37]/40 rounded-xl text-left transition-colors cursor-pointer"
-                >
-                  <span className="text-[11px] font-bold text-[#D4AF37] block">Arthur (Owner)</span>
-                  <span className="text-[10px] text-slate-400 block truncate">arthurscreatives@gmail.com</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handleQuickDemoSign('client@summitwellness.example')}
-                  className="px-2.5 py-2 bg-[#111738] hover:bg-[#202b66] border border-slate-700 rounded-xl text-left transition-colors cursor-pointer"
-                >
-                  <span className="text-[11px] font-bold text-cyan-300 block">Customer Demo</span>
-                  <span className="text-[10px] text-slate-400 block truncate">client@summitwellness.example</span>
-                </button>
-              </div>
-            </div>
           </form>
         )}
 
         {/* Registration Form */}
         {mode === 'register' && (
           <form onSubmit={handleRegister} className="space-y-4">
+            {/* Package Selection */}
             <div className="space-y-1.5">
-              <label className="text-xs font-semibold text-slate-300 flex items-center gap-1.5">
+              <label className="text-xs font-semibold text-slate-300 flex items-center justify-between">
+                <span>Select Package:</span>
+                <span className="text-[10px] text-emerald-400 font-mono">14-Day Free Trial</span>
+              </label>
+              <div className="grid grid-cols-3 gap-2">
+                {PLANS.map((plan) => (
+                  <button
+                    key={plan.id}
+                    type="button"
+                    onClick={() => setSelectedPlan(plan.id)}
+                    className={`p-2.5 rounded-xl border text-left transition-all cursor-pointer relative ${
+                      selectedPlan === plan.id
+                        ? 'border-[#00F3FF] bg-[#00F3FF]/10 text-white'
+                        : 'border-slate-800 bg-[#111738] text-slate-300 hover:border-slate-700'
+                    }`}
+                  >
+                    {plan.popular && (
+                      <span className="absolute -top-2 right-1.5 bg-[#D4AF37] text-[#0b0f26] text-[8px] font-bold px-1.5 py-0.2 rounded-full uppercase">
+                        Popular
+                      </span>
+                    )}
+                    <div className="text-[11px] font-bold flex items-center justify-between">
+                      <span>{plan.name}</span>
+                      {selectedPlan === plan.id && <Check className="w-3 h-3 text-[#00F3FF]" />}
+                    </div>
+                    <div className="text-[10px] font-mono text-[#00F3FF] mt-0.5">{plan.price}</div>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="space-y-1.5">
+              <label htmlFor="reg-fullname" className="text-xs font-semibold text-slate-300 flex items-center gap-1.5">
                 <UserIcon className="w-3.5 h-3.5 text-slate-400" />
-                <span>Full Name</span>
+                <span>Your Name</span>
               </label>
               <input
+                id="reg-fullname"
                 type="text"
                 required
                 value={fullName}
                 onChange={(e) => setFullName(e.target.value)}
-                placeholder="Elena Vance"
-                className="w-full px-3.5 py-2.5 bg-[#111738] border border-slate-700 rounded-xl text-xs text-white placeholder-slate-500 focus:outline-none focus:border-[#00F3FF]"
+                placeholder="e.g. Alex Morgan"
+                className="w-full px-3.5 py-2.5 bg-[#111738] border border-slate-700 rounded-xl text-xs text-white placeholder-slate-500 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#00F3FF]"
               />
             </div>
 
             <div className="space-y-1.5">
-              <label className="text-xs font-semibold text-slate-300 flex items-center gap-1.5">
+              <label htmlFor="reg-bizname" className="text-xs font-semibold text-slate-300 flex items-center gap-1.5">
                 <Building2 className="w-3.5 h-3.5 text-slate-400" />
                 <span>Business Name</span>
               </label>
               <input
+                id="reg-bizname"
                 type="text"
                 required
                 value={businessName}
                 onChange={(e) => setBusinessName(e.target.value)}
-                placeholder="Summit Wellness & Physical Therapy"
-                className="w-full px-3.5 py-2.5 bg-[#111738] border border-slate-700 rounded-xl text-xs text-white placeholder-slate-500 focus:outline-none focus:border-[#00F3FF]"
+                placeholder="e.g. Metro Dental Clinic"
+                className="w-full px-3.5 py-2.5 bg-[#111738] border border-slate-700 rounded-xl text-xs text-white placeholder-slate-500 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#00F3FF]"
               />
             </div>
 
             <div className="space-y-1.5">
-              <label className="text-xs font-semibold text-slate-300 flex items-center gap-1.5">
+              <label htmlFor="reg-email" className="text-xs font-semibold text-slate-300 flex items-center gap-1.5">
                 <Mail className="w-3.5 h-3.5 text-slate-400" />
                 <span>Work Email</span>
               </label>
               <input
+                id="reg-email"
                 type="email"
                 required
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                placeholder="elena@summitwellness.com"
-                className="w-full px-3.5 py-2.5 bg-[#111738] border border-slate-700 rounded-xl text-xs text-white placeholder-slate-500 focus:outline-none focus:border-[#00F3FF]"
+                placeholder="e.g. alex@metrodental.com"
+                className="w-full px-3.5 py-2.5 bg-[#111738] border border-slate-700 rounded-xl text-xs text-white placeholder-slate-500 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#00F3FF]"
               />
             </div>
 
@@ -290,16 +323,55 @@ export function CustomerAuthModal({
                 <span>Isolated Workspace Architecture</span>
               </div>
               <p className="text-slate-400">
-                Your credentials, audits, and Google connection are strictly segregated. 1 business location is supported per workspace.
+                Zero shared credentials or cross-business data. You start with clean zero data and full administrative control.
               </p>
+            </div>
+
+            {/* Terms of Service & Privacy Acceptance Checkbox */}
+            <div className="pt-1">
+              <label className="flex items-start gap-2 text-xs text-slate-300 cursor-pointer">
+                <input
+                  type="checkbox"
+                  id="reg-terms-checkbox"
+                  required
+                  checked={termsAccepted}
+                  onChange={(e) => setTermsAccepted(e.target.checked)}
+                  className="mt-0.5 rounded border-slate-700 text-[#00F3FF] accent-[#00F3FF] cursor-pointer focus-visible:ring-2 focus-visible:ring-[#00F3FF]"
+                />
+                <span className="leading-snug text-[11px] text-slate-300">
+                  I agree to the{' '}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (onOpenPolicy) onOpenPolicy('terms');
+                      else window.open('/terms', '_blank');
+                    }}
+                    className="text-[#00F3FF] underline hover:text-white font-medium focus-visible:ring-1 focus-visible:ring-[#00F3FF] rounded"
+                  >
+                    Terms of Service
+                  </button>{' '}
+                  and acknowledge the{' '}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (onOpenPolicy) onOpenPolicy('privacy');
+                      else window.open('/privacy', '_blank');
+                    }}
+                    className="text-[#00F3FF] underline hover:text-white font-medium focus-visible:ring-1 focus-visible:ring-[#00F3FF] rounded"
+                  >
+                    Privacy Policy
+                  </button>
+                  .
+                </span>
+              </label>
             </div>
 
             <button
               type="submit"
-              disabled={isLoading}
-              className="w-full py-3 bg-gradient-to-r from-[#00F3FF] to-blue-500 hover:from-[#00F3FF]/90 text-[#0b0f26] font-bold text-xs rounded-xl shadow-lg shadow-[#00F3FF]/20 flex items-center justify-center gap-2 transition-all cursor-pointer disabled:opacity-50"
+              disabled={isLoading || !termsAccepted}
+              className="w-full py-3.5 bg-gradient-to-r from-[#00F3FF] to-blue-500 hover:from-[#00F3FF]/90 text-[#0b0f26] font-bold text-xs rounded-xl shadow-lg shadow-[#00F3FF]/20 flex items-center justify-center gap-2 transition-all cursor-pointer disabled:opacity-50 focus-visible:ring-2 focus-visible:ring-white focus:outline-none"
             >
-              <span>{isLoading ? 'Creating Workspace...' : 'Create Account & Begin Onboarding'}</span>
+              <span>{isLoading ? 'Authorizing...' : 'Start 14-Day Free Trial & Enter Control Center'}</span>
               <ArrowRight className="w-3.5 h-3.5" />
             </button>
           </form>

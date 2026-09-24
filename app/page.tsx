@@ -19,7 +19,10 @@ import { CustomerOnboardingWizard } from '@/components/CustomerOnboardingWizard'
 import { AdminDashboardModal } from '@/components/AdminDashboardModal';
 import { BillingModal } from '@/components/BillingModal';
 import { GoogleRequirementsModal } from '@/components/GoogleRequirementsModal';
-import { LegalPagesModal } from '@/components/LegalPagesModal';
+import { LegalPagesModal, LegalTab } from '@/components/LegalPagesModal';
+import { SuccessCelebration, CelebrationData } from '@/components/SuccessCelebration';
+import { WorkforceChat } from '@/components/WorkforceChat';
+import { LiveVoiceModal } from '@/components/LiveVoiceModal';
 import { User, Workspace, PlanConfig } from '@/types/workspace';
 import {
   defaultApprovedBusinessFacts,
@@ -79,13 +82,13 @@ const defaultFallbackPlan: PlanConfig = {
 
 export default function Home() {
   const [activeTab, setActiveTab] = useState<NavTabId>('overview');
-  const [connectionStatus, setConnectionStatus] = useState<ConnectionStatus>('connected');
+  const [connectionStatus, setConnectionStatus] = useState<ConnectionStatus>('not_connected');
   const [isConnectModalOpen, setIsConnectModalOpen] = useState<boolean>(false);
   const [isWorkforceModalOpen, setIsWorkforceModalOpen] = useState<boolean>(false);
   const [workforceModalMode, setWorkforceModalMode] = useState<'build' | 'explore'>('build');
 
-  // Multi-Tenancy & Public Product State
-  const [showLandingPage, setShowLandingPage] = useState<boolean>(false);
+  // Multi-Tenancy & Public Product State (Landing Page is default until authorized)
+  const [showLandingPage, setShowLandingPage] = useState<boolean>(true);
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [currentWorkspace, setCurrentWorkspace] = useState<Workspace | null>(null);
   const [planConfig, setPlanConfig] = useState<PlanConfig>(defaultFallbackPlan);
@@ -93,19 +96,21 @@ export default function Home() {
   // Modals
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [authModalMode, setAuthModalMode] = useState<'signin' | 'register'>('signin');
+  const [selectedPlanForModal, setSelectedPlanForModal] = useState<string>('starter');
   const [isOnboardingOpen, setIsOnboardingOpen] = useState(false);
   const [isAdminOpen, setIsAdminOpen] = useState(false);
   const [isBillingOpen, setIsBillingOpen] = useState(false);
   const [isGoogleReqsOpen, setIsGoogleReqsOpen] = useState(false);
   const [isLegalOpen, setIsLegalOpen] = useState(false);
-  const [legalInitialTab, setLegalInitialTab] = useState<'terms' | 'privacy' | 'support'>('privacy');
+  const [legalInitialTab, setLegalInitialTab] = useState<LegalTab>('privacy');
+  const [isLiveVoiceModalOpen, setIsLiveVoiceModalOpen] = useState(false);
 
-  // Core State
+  // Core State (Starts clean at zero data)
   const [approvedFacts, setApprovedFacts] = useState<ApprovedBusinessFacts>(defaultApprovedBusinessFacts);
   const [liveProfile, setLiveProfile] = useState<GoogleBusinessProfile>(defaultLiveGoogleProfile);
   const [findings, setFindings] = useState<InspectorFinding[]>(defaultFindings);
   const [repairProposals, setRepairProposals] = useState<RepairProposal[]>(defaultRepairProposals);
-  const [internalHealthScore, setInternalHealthScore] = useState<number>(72);
+  const [internalHealthScore, setInternalHealthScore] = useState<number>(0);
   const [metrics, setMetrics] = useState<SearchInsightMetrics>(defaultSearchMetrics);
   const [drafts, setDrafts] = useState<ContentDraft[]>(defaultContentDrafts);
   const [logs, setLogs] = useState<ActivityLog[]>(defaultActivityLogs);
@@ -119,6 +124,10 @@ export default function Home() {
   const [isRefreshingMetrics, setIsRefreshingMetrics] = useState(false);
   const [isGeneratingDraft, setIsGeneratingDraft] = useState(false);
   const [isCycling, setIsCycling] = useState(false);
+
+  // Success Celebration & Google Verification Animation States
+  const [celebration, setCelebration] = useState<CelebrationData | null>(null);
+  const [recentlyVerifiedId, setRecentlyVerifiedId] = useState<string | null>(null);
 
   // Helper for EDT Timestamp
   const getFormattedTimestamp = () => {
@@ -325,6 +334,19 @@ export default function Home() {
       if (data.log) {
         setLogs((prev) => [data.log, ...prev]);
       }
+
+      // Trigger subtle success celebration & Google verification glowing pulse
+      setRecentlyVerifiedId(proposal.id);
+      setCelebration({
+        id: proposal.id,
+        title: 'Repair Applied & Verified with Google',
+        subtitle: `${proposal.fieldLabel} was updated and verified live on your Google Business Profile.`,
+        type: 'repair',
+        timestamp: Date.now(),
+      });
+      setTimeout(() => {
+        setRecentlyVerifiedId((prev) => (prev === proposal.id ? null : prev));
+      }, 7000);
 
       return { success: true, message: data.message };
     } catch (err: any) {
@@ -682,6 +704,19 @@ export default function Home() {
       `Arthur authorized execution of "${task.action}". Changes published to Google Business Profile and verified.`,
       task.targetField
     );
+
+    // Trigger subtle success celebration & Google verification glowing pulse
+    setRecentlyVerifiedId(taskId);
+    setCelebration({
+      id: taskId,
+      title: 'Task Executed & Verified with Google',
+      subtitle: `"${task.action}" was successfully authorized, executed, and confirmed live on Google.`,
+      type: 'task',
+      timestamp: Date.now(),
+    });
+    setTimeout(() => {
+      setRecentlyVerifiedId((prev) => (prev === taskId ? null : prev));
+    }, 7000);
   };
 
   // 14. Task Dismiss / Cancel Handlers
@@ -851,11 +886,15 @@ export default function Home() {
           currentUser={currentUser}
           currentWorkspace={currentWorkspace}
           planConfig={planConfig}
-          onOpenAuth={(mode) => {
+          onOpenAuth={(mode, planId) => {
             setAuthModalMode(mode);
+            if (planId) setSelectedPlanForModal(planId);
             setIsAuthModalOpen(true);
           }}
-          onStartOnboarding={() => setIsOnboardingOpen(true)}
+          onStartOnboarding={(planId) => {
+            if (planId) setSelectedPlanForModal(planId);
+            setIsOnboardingOpen(true);
+          }}
           onEnterWorkspace={() => setShowLandingPage(false)}
           onOpenGoogleRequirements={() => setIsGoogleReqsOpen(true)}
           onOpenLegal={(tab) => {
@@ -869,7 +908,12 @@ export default function Home() {
         <CustomerAuthModal
           isOpen={isAuthModalOpen}
           initialMode={authModalMode}
+          initialPlanId={selectedPlanForModal}
           onClose={() => setIsAuthModalOpen(false)}
+          onOpenPolicy={(tab) => {
+            setLegalInitialTab(tab);
+            setIsLegalOpen(true);
+          }}
           onAuthSuccess={(user, workspace) => {
             setCurrentUser(user);
             setCurrentWorkspace(workspace);
@@ -917,12 +961,23 @@ export default function Home() {
           initialTab={legalInitialTab}
           onClose={() => setIsLegalOpen(false)}
         />
+        {/* Success Celebration & Verification Animation */}
+        <SuccessCelebration
+          celebration={celebration}
+          onDismiss={() => setCelebration(null)}
+        />
       </div>
     );
   }
 
   return (
     <div className="min-h-screen bg-[#111738] text-slate-100 flex flex-col font-sans selection:bg-[#00F3FF] selection:text-[#0b0f26]">
+      {/* Success Celebration & Verification Animation */}
+      <SuccessCelebration
+        celebration={celebration}
+        onDismiss={() => setCelebration(null)}
+      />
+
       {/* Persistent Global Header */}
       <Header
         connectionStatus={connectionStatus}
@@ -934,14 +989,20 @@ export default function Home() {
           setWorkforceModalMode(mode);
           setIsWorkforceModalOpen(true);
         }}
+        onOpenLiveVoice={() => setIsLiveVoiceModalOpen(true)}
+        onOpenAIChat={() => setActiveTab('workforce_chat')}
         workspaceName={currentWorkspace?.businessName || liveProfile.title}
         userRole={currentUser?.role || (currentWorkspace?.role === 'owner' ? 'owner' : 'customer')}
         onOpenBilling={() => setIsBillingOpen(true)}
         onOpenAdmin={() => setIsAdminOpen(true)}
         onOpenLandingPage={() => setShowLandingPage(true)}
-        onSignOut={() => {
-          setIsAuthModalOpen(true);
-          setAuthModalMode('signin');
+        onSignOut={async () => {
+          try {
+            await fetch('/api/auth/logout', { method: 'POST' });
+          } catch {}
+          setCurrentUser(null);
+          setCurrentWorkspace(null);
+          setShowLandingPage(true);
         }}
       />
 
@@ -995,6 +1056,14 @@ export default function Home() {
             onOpenConnectModal={() => setIsConnectModalOpen(true)}
             onNavigateTab={setActiveTab}
             isCycling={isCycling}
+            recentlyVerifiedId={recentlyVerifiedId}
+          />
+        )}
+
+        {activeTab === 'workforce_chat' && (
+          <WorkforceChat
+            businessName={approvedFacts.businessName}
+            onOpenLiveVoice={() => setIsLiveVoiceModalOpen(true)}
           />
         )}
 
@@ -1021,6 +1090,7 @@ export default function Home() {
             onRunInspectionNow={handleRunInspection}
             isInspecting={isInspecting}
             onPrepareAIRepair={handlePrepareAIRepair}
+            recentlyVerifiedId={recentlyVerifiedId}
           />
         )}
 
@@ -1081,6 +1151,10 @@ export default function Home() {
           workspace={currentWorkspace}
           planConfig={planConfig}
           onClose={() => setIsBillingOpen(false)}
+          onOpenPolicy={(tab) => {
+            setLegalInitialTab(tab);
+            setIsLegalOpen(true);
+          }}
           onRefreshWorkspace={async () => {
             const res = await fetch('/api/auth/me');
             if (res.ok) {
@@ -1115,6 +1189,10 @@ export default function Home() {
         isOpen={isAuthModalOpen}
         initialMode={authModalMode}
         onClose={() => setIsAuthModalOpen(false)}
+        onOpenPolicy={(tab) => {
+          setLegalInitialTab(tab);
+          setIsLegalOpen(true);
+        }}
         onAuthSuccess={(user, workspace) => {
           setCurrentUser(user);
           setCurrentWorkspace(workspace);
@@ -1151,45 +1229,86 @@ export default function Home() {
         onClose={() => setIsLegalOpen(false)}
       />
 
-      {/* Footer */}
-      <footer className="border-t border-slate-800/80 bg-[#0b0f26] py-5 px-4 text-center text-xs text-slate-400">
-        <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-2">
-          <p>
-            Arthur’s AI Workforce · <strong className="text-white">Arthur’s Creatives</strong> (Public Multi-Tenant Foundation)
+      {/* Live Voice Assistant Modal (gemini-3.8-live) */}
+      <LiveVoiceModal
+        isOpen={isLiveVoiceModalOpen}
+        onClose={() => setIsLiveVoiceModalOpen(false)}
+        businessName={approvedFacts.businessName}
+        defaultRole="AI Phone Receptionist"
+      />
+
+      {/* Workspace Footer */}
+      <footer className="border-t border-slate-800/80 bg-[#0b0f26] py-5 px-4 text-xs text-slate-400">
+        <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-3">
+          <p className="text-[11px]">
+            Arthur’s AI Workforce · Operated by <strong className="text-white">Velo Website Development LLC, operating as Arthur’s Creatives</strong>
           </p>
-          <div className="flex items-center gap-4 text-slate-400 text-[11px]">
+          <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-1.5 text-slate-400 text-[11px]">
             <button
-              onClick={() => {
-                setLegalInitialTab('privacy');
-                setIsLegalOpen(true);
-              }}
-              className="hover:underline cursor-pointer"
-            >
-              Privacy Policy (Draft)
-            </button>
-            <button
+              type="button"
               onClick={() => {
                 setLegalInitialTab('terms');
                 setIsLegalOpen(true);
               }}
-              className="hover:underline cursor-pointer"
+              className="hover:underline cursor-pointer focus-visible:ring-1 focus-visible:ring-[#00F3FF] rounded"
             >
-              Terms of Service (Draft)
+              Terms of Service
             </button>
             <button
+              type="button"
+              onClick={() => {
+                setLegalInitialTab('privacy');
+                setIsLegalOpen(true);
+              }}
+              className="hover:underline cursor-pointer focus-visible:ring-1 focus-visible:ring-[#00F3FF] rounded"
+            >
+              Privacy Policy
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setLegalInitialTab('billing');
+                setIsLegalOpen(true);
+              }}
+              className="hover:underline cursor-pointer focus-visible:ring-1 focus-visible:ring-[#00F3FF] rounded"
+            >
+              Billing & Refunds
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setLegalInitialTab('accessibility');
+                setIsLegalOpen(true);
+              }}
+              className="hover:underline cursor-pointer focus-visible:ring-1 focus-visible:ring-[#00F3FF] rounded"
+            >
+              Accessibility Statement
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                window.dispatchEvent(new CustomEvent('open_arthur_cookie_settings'));
+              }}
+              className="hover:underline text-[#00F3FF] cursor-pointer focus-visible:ring-1 focus-visible:ring-[#00F3FF] rounded"
+            >
+              Cookie Settings
+            </button>
+            <button
+              type="button"
               onClick={() => {
                 setLegalInitialTab('support');
                 setIsLegalOpen(true);
               }}
-              className="hover:underline cursor-pointer"
+              className="hover:underline cursor-pointer focus-visible:ring-1 focus-visible:ring-[#00F3FF] rounded"
             >
-              Support
+              Support & Identity
             </button>
             <button
+              type="button"
               onClick={() => setIsGoogleReqsOpen(true)}
-              className="hover:underline text-[#00F3FF] cursor-pointer"
+              className="hover:underline text-amber-300 cursor-pointer focus-visible:ring-1 focus-visible:ring-amber-300 rounded"
             >
-              Google Access & Policies
+              Google Access & Verification
             </button>
           </div>
         </div>

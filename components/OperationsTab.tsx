@@ -60,6 +60,7 @@ interface OperationsTabProps {
   onOpenConnectModal: () => void;
   onNavigateTab: (tab: NavTabId) => void;
   isCycling: boolean;
+  recentlyVerifiedId?: string | null;
 }
 
 export function OperationsTab({
@@ -79,6 +80,7 @@ export function OperationsTab({
   onOpenConnectModal,
   onNavigateTab,
   isCycling,
+  recentlyVerifiedId,
 }: OperationsTabProps) {
   const [taskFilter, setTaskFilter] = useState<string>('all');
   const [taskSearch, setTaskSearch] = useState<string>('');
@@ -651,34 +653,51 @@ export function OperationsTab({
               const isQueued = task.executionStatus === 'Queued';
               const isFailed = task.executionStatus === 'Failed';
               const isCanceled = task.executionStatus === 'Canceled';
+              const isRecentlyVerified = recentlyVerifiedId === task.id;
 
               return (
                 <div
                   key={task.id}
-                  className="p-4 rounded-xl bg-[#111738] border border-slate-800 hover:border-slate-700 transition-all flex flex-col lg:flex-row lg:items-center justify-between gap-4"
+                  className={`p-4 rounded-xl transition-all flex flex-col lg:flex-row lg:items-center justify-between gap-4 relative overflow-hidden ${
+                    isRecentlyVerified
+                      ? 'animate-verified-glow ring-2 ring-emerald-400 bg-[#142345] border-emerald-400'
+                      : 'bg-[#111738] border border-slate-800 hover:border-slate-700'
+                  }`}
                 >
+                  {/* Top Accent Line on Verification */}
+                  {isRecentlyVerified && (
+                    <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-emerald-400 via-[#00F3FF] to-[#D4AF37] animate-pulse" />
+                  )}
+
                   <div className="flex-1 space-y-2">
                     <div className="flex flex-wrap items-center gap-2">
                       <span className="text-sm font-bold text-white">{task.action}</span>
 
                       {/* Status Badge */}
-                      <span
-                        className={`text-[11px] font-bold px-2.5 py-0.5 rounded-full border ${
-                          isCompleted
-                            ? 'bg-emerald-500/15 text-emerald-300 border-emerald-500/40'
-                            : isAwaiting
-                            ? 'bg-amber-500/15 text-amber-300 border-amber-500/40 animate-pulse'
-                            : isBlocked
-                            ? 'bg-rose-500/15 text-rose-300 border-rose-500/40'
-                            : isQueued
-                            ? 'bg-[#00F3FF]/15 text-[#00F3FF] border-[#00F3FF]/40'
-                            : isFailed
-                            ? 'bg-red-900/40 text-red-300 border-red-700'
-                            : 'bg-slate-700 text-slate-300 border-slate-600'
-                        }`}
-                      >
-                        {task.executionStatus}
-                      </span>
+                      {isRecentlyVerified ? (
+                        <span className="text-[11px] font-black px-2.5 py-0.5 rounded-full bg-emerald-500/25 text-emerald-300 border border-emerald-400 flex items-center gap-1 shadow-[0_0_12px_rgba(16,185,129,0.4)] animate-pulse">
+                          <Sparkles className="w-3 h-3 text-[#00F3FF]" />
+                          Just Verified with Google
+                        </span>
+                      ) : (
+                        <span
+                          className={`text-[11px] font-bold px-2.5 py-0.5 rounded-full border ${
+                            isCompleted
+                              ? 'bg-emerald-500/15 text-emerald-300 border-emerald-500/40'
+                              : isAwaiting
+                              ? 'bg-amber-500/15 text-amber-300 border-amber-500/40 animate-pulse'
+                              : isBlocked
+                              ? 'bg-rose-500/15 text-rose-300 border-rose-500/40'
+                              : isQueued
+                              ? 'bg-[#00F3FF]/15 text-[#00F3FF] border-[#00F3FF]/40'
+                              : isFailed
+                              ? 'bg-red-900/40 text-red-300 border-red-700'
+                              : 'bg-slate-700 text-slate-300 border-slate-600'
+                          }`}
+                        >
+                          {task.executionStatus}
+                        </span>
+                      )}
 
                       {/* Target Label */}
                       {task.targetLabel && (

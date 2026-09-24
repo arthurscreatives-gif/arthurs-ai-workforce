@@ -21,6 +21,8 @@ import {
   FileText,
   Mail,
   HelpCircle,
+  Radio,
+  Bot,
 } from 'lucide-react';
 import { PlanConfig, User, Workspace } from '@/types/workspace';
 
@@ -28,11 +30,11 @@ interface PublicLandingPageProps {
   currentUser: User | null;
   currentWorkspace: Workspace | null;
   planConfig: PlanConfig;
-  onOpenAuth: (mode: 'signin' | 'register') => void;
-  onStartOnboarding: () => void;
+  onOpenAuth: (mode: 'signin' | 'register', planId?: string) => void;
+  onStartOnboarding: (planId?: string) => void;
   onEnterWorkspace: () => void;
   onOpenGoogleRequirements: () => void;
-  onOpenLegal: (tab: 'terms' | 'privacy' | 'support') => void;
+  onOpenLegal: (tab: 'terms' | 'privacy' | 'billing' | 'accessibility' | 'cookies' | 'support') => void;
   onOpenAdmin: () => void;
 }
 
@@ -47,10 +49,20 @@ export function PublicLandingPage({
   onOpenLegal,
   onOpenAdmin,
 }: PublicLandingPageProps) {
-  const [activeFeatureTab, setActiveFeatureTab] = useState<'audit' | 'repairs' | 'content' | 'reviews' | 'operations'>('audit');
+  const [activeFeatureTab, setActiveFeatureTab] = useState<
+    'audit' | 'repairs' | 'content' | 'reviews' | 'operations' | 'ai_workforce'
+  >('audit');
 
   return (
     <div className="min-h-screen bg-[#0b0f26] text-slate-100 selection:bg-[#00F3FF]/30 selection:text-white">
+      {/* Accessible Skip Link */}
+      <a
+        href="#main-content"
+        className="sr-only focus:not-sr-only focus:fixed focus:top-3 focus:left-3 focus:z-50 focus:px-4 focus:py-2 focus:bg-[#00F3FF] focus:text-[#0b0f26] focus:font-bold focus:rounded-xl focus:shadow-2xl focus:outline-none"
+      >
+        Skip to main content
+      </a>
+
       {/* Top Banner: Standalone Pricing / Test Mode Notice */}
       <div className="bg-[#18204c] border-b border-amber-500/30 px-4 py-2 text-center text-xs text-amber-300 flex items-center justify-center gap-2">
         <Info className="w-3.5 h-3.5 text-amber-400 flex-shrink-0" />
@@ -135,7 +147,7 @@ export function PublicLandingPage({
                   Sign In
                 </button>
                 <button
-                  onClick={onStartOnboarding}
+                  onClick={() => onStartOnboarding()}
                   className="px-4 py-2 bg-gradient-to-r from-[#00F3FF] to-blue-500 hover:from-[#00F3FF]/90 text-[#0b0f26] font-bold text-xs rounded-xl shadow-lg shadow-[#00F3FF]/20 transition-all flex items-center gap-1.5 cursor-pointer"
                 >
                   <span>Get Started</span>
@@ -168,7 +180,7 @@ export function PublicLandingPage({
 
           <div className="pt-4 flex flex-col sm:flex-row items-center justify-center gap-4">
             <button
-              onClick={onStartOnboarding}
+              onClick={() => onStartOnboarding()}
               className="w-full sm:w-auto px-6 py-3.5 bg-gradient-to-r from-[#00F3FF] via-[#00d0db] to-blue-500 hover:opacity-95 text-[#0b0f26] font-extrabold text-sm rounded-xl shadow-xl shadow-[#00F3FF]/25 flex items-center justify-center gap-2 transition-all cursor-pointer"
             >
               <span>Build Your AI Workforce</span>
@@ -317,6 +329,7 @@ export function PublicLandingPage({
               { id: 'content', label: '3. Content Engine', icon: FileEdit },
               { id: 'reviews', label: '4. Review Workflows', icon: MessageSquare },
               { id: 'operations', label: '5. Daily Operations', icon: Sliders },
+              { id: 'ai_workforce', label: '6. Live Voice & Grounded AI', icon: Sparkles },
             ].map((tab) => {
               const Icon = tab.icon;
               const isActive = activeFeatureTab === tab.id;
@@ -446,90 +459,241 @@ export function PublicLandingPage({
                 </p>
               </div>
             )}
+
+            {activeFeatureTab === 'ai_workforce' && (
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-mono text-[#00F3FF]">Gemini Multi-Model Intelligence</span>
+                  <span className="text-xs bg-[#00F3FF]/20 text-[#00F3FF] px-2 py-0.5 rounded border border-[#00F3FF]/30">
+                    gemini-3.8-live &bull; gemini-3.5-flash &bull; gemini-3.1-pro-preview
+                  </span>
+                </div>
+                <h3 className="text-lg font-bold text-white">
+                  Real-Time Live Voice, Google Search Grounding, and Multi-Turn Agents
+                </h3>
+                <p className="text-xs text-slate-300 leading-relaxed">
+                  Interact with your digital workforce naturally. Experience ultra-low-latency real-time voice calls using the Live API, synthesize live Google Search data with verified web citations, and consult specialized AI agents designed for operations, SEO, policy compliance, and voice receptionist simulation.
+                </p>
+                <div className="bg-[#111738] p-4 rounded-xl border border-slate-800 grid grid-cols-1 sm:grid-cols-3 gap-4 text-xs">
+                  <div>
+                    <span className="text-slate-400 block text-[11px]">Real-Time Voice API:</span>
+                    <span className="text-[#00F3FF] font-semibold">gemini-3.8-live (24kHz audio)</span>
+                  </div>
+                  <div>
+                    <span className="text-slate-400 block text-[11px]">Google Search Grounding:</span>
+                    <span className="text-emerald-300 font-semibold">gemini-3.5-flash + web citations</span>
+                  </div>
+                  <div>
+                    <span className="text-slate-400 block text-[11px]">Complex Reasoning Agent:</span>
+                    <span className="text-purple-300 font-semibold">gemini-3.1-pro-preview</span>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </section>
 
-      {/* Subscription Pricing Section (Honest, Configurable Package) */}
-      <section id="pricing" className="py-16 border-b border-slate-800 bg-[#111738]/40">
-        <div className="max-w-4xl mx-auto px-4">
-          <div className="text-center max-w-2xl mx-auto mb-10 space-y-2">
+      {/* Subscription Pricing Section (3 Distinct Packages) */}
+      <section id="pricing" className="py-20 border-b border-slate-800 bg-[#111738]/40">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center max-w-3xl mx-auto mb-14 space-y-3">
             <h2 className="text-xs uppercase tracking-widest text-[#00F3FF] font-mono font-bold">
-              Subscription Foundation
+              Transparent Digital Workforce Packages
             </h2>
-            <p className="text-2xl sm:text-3xl font-bold text-white">
-              One Transparent Package. Full Control.
+            <p className="text-3xl sm:text-4xl font-black text-white tracking-tight">
+              Select Your Plan to Launch Your 14-Day Free Trial
             </p>
-            <p className="text-xs text-slate-400">
-              Start with 1 connected business location per workspace. Additional locations and team invitations will be added in future updates.
+            <p className="text-sm text-slate-300">
+              Every plan starts with a 14-day free trial. Sign up, pick your package, and once authorized, you are immediately released into your private control center with zero mock data.
             </p>
           </div>
 
-          {/* Pricing Card */}
-          <div className="bg-[#18204c] border-2 border-[#D4AF37]/50 rounded-3xl p-8 shadow-2xl relative">
-            <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-gradient-to-r from-[#D4AF37] to-amber-500 text-[#0b0f26] font-bold text-[11px] px-4 py-1 rounded-full uppercase tracking-wider shadow-md">
-              Standalone Software Edition
-            </div>
-
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 pb-6 border-b border-slate-800">
-              <div>
-                <h3 className="text-xl font-bold text-white">{planConfig.name}</h3>
-                <p className="text-xs text-slate-300 mt-1">{planConfig.tagline}</p>
-              </div>
-              <div className="text-left md:text-right">
-                <div className="text-3xl font-black text-white">
-                  ${Math.round(planConfig.monthlyPriceInCents / 100)}
-                  <span className="text-xs font-normal text-slate-400"> / month</span>
+          {/* 3 Packages Grid */}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-stretch">
+            {/* Package 1: Starter */}
+            <div className="bg-[#18204c] border border-slate-700/80 hover:border-[#00F3FF]/50 rounded-3xl p-8 flex flex-col justify-between transition-all relative">
+              <div className="space-y-6">
+                <div>
+                  <span className="text-xs font-mono text-[#00F3FF] uppercase font-bold tracking-wider">
+                    Foundation
+                  </span>
+                  <h3 className="text-2xl font-bold text-white mt-1">Starter Workforce</h3>
+                  <p className="text-xs text-slate-300 mt-2 leading-relaxed">
+                    Essential Google Business Profile drift audits, authorized repairs, and AI-drafted weekly updates.
+                  </p>
                 </div>
-                <span className="text-[10px] text-amber-300 block mt-1 font-mono">
-                  (Test Mode Preview — Pending Arthur’s Final Offer Approval)
-                </span>
-              </div>
-            </div>
 
-            {/* Inclusions */}
-            <div className="py-6 grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
-              {planConfig.features.map((feature, idx) => (
-                <div key={idx} className="flex items-start gap-2.5">
-                  <CheckCircle2 className="w-4 h-4 text-emerald-400 flex-shrink-0 mt-0.5" />
-                  <span className="text-slate-200">{feature}</span>
+                <div className="pt-2 border-t border-slate-800">
+                  <div className="flex items-baseline gap-1">
+                    <span className="text-4xl font-black text-white">$49</span>
+                    <span className="text-xs text-slate-400">/ month</span>
+                  </div>
+                  <span className="inline-block mt-1 text-[11px] text-emerald-400 font-semibold bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20">
+                    14-Day Free Trial Included
+                  </span>
                 </div>
-              ))}
+
+                <div className="space-y-3 pt-2 text-xs">
+                  <span className="text-[11px] font-mono text-slate-400 uppercase tracking-wider block">
+                    What is included:
+                  </span>
+                  {[
+                    '1 Managed Google Business Location',
+                    'Continuous Inconsistency & Drift Audits',
+                    'One-Click Authorized Profile Repairs',
+                    '30 AI-Drafted Monthly Posts & Tips',
+                    'Tailored Review Response Drafting',
+                    'Review-First Safe Execution by Default',
+                    'Daily Operations Ledger & History',
+                  ].map((feat, i) => (
+                    <div key={i} className="flex items-start gap-2.5 text-slate-200">
+                      <CheckCircle2 className="w-4 h-4 text-emerald-400 flex-shrink-0 mt-0.5" />
+                      <span>{feat}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div className="pt-8">
+                <button
+                  onClick={() => onOpenAuth('register', 'starter')}
+                  className="w-full py-3.5 bg-[#25336e] hover:bg-[#324594] text-white font-bold text-xs rounded-xl transition-all flex items-center justify-center gap-2 cursor-pointer border border-slate-600 focus-visible:ring-2 focus-visible:ring-[#00F3FF]"
+                >
+                  <span>Start 14-Day Free Trial</span>
+                  <ArrowRight className="w-3.5 h-3.5 text-[#00F3FF]" />
+                </button>
+              </div>
             </div>
 
-            {/* Quota breakdown */}
-            <div className="bg-[#111738] p-4 rounded-xl border border-slate-800 mb-6 grid grid-cols-2 sm:grid-cols-4 gap-3 text-center text-xs">
-              <div>
-                <span className="text-slate-400 text-[10px] block">Locations</span>
-                <span className="text-white font-bold">{planConfig.entitlements.maxLocations} Location</span>
+            {/* Package 2: Growth (Highlighted) */}
+            <div className="bg-[#18204c] border-2 border-[#00F3FF] rounded-3xl p-8 flex flex-col justify-between shadow-2xl shadow-[#00F3FF]/15 relative">
+              <div className="absolute -top-3.5 left-1/2 -translate-x-1/2 bg-gradient-to-r from-[#00F3FF] to-blue-500 text-[#0b0f26] font-black text-[11px] px-4 py-1 rounded-full uppercase tracking-wider shadow-md">
+                Most Popular Choice
               </div>
-              <div>
-                <span className="text-slate-400 text-[10px] block">AI Analyses</span>
-                <span className="text-white font-bold">{planConfig.entitlements.monthlyAiAnalysesQuota}/mo</span>
+
+              <div className="space-y-6">
+                <div>
+                  <span className="text-xs font-mono text-[#00F3FF] uppercase font-bold tracking-wider">
+                    Expansion & Automation
+                  </span>
+                  <h3 className="text-2xl font-bold text-white mt-1">Growth Workforce</h3>
+                  <p className="text-xs text-slate-300 mt-2 leading-relaxed">
+                    Multi-location intelligence, real-time disparity alerts, keyword trend tracking, and scheduled routine autopilot.
+                  </p>
+                </div>
+
+                <div className="pt-2 border-t border-slate-800">
+                  <div className="flex items-baseline gap-1">
+                    <span className="text-4xl font-black text-white">$99</span>
+                    <span className="text-xs text-slate-400">/ month</span>
+                  </div>
+                  <span className="inline-block mt-1 text-[11px] text-[#00F3FF] font-semibold bg-[#00F3FF]/10 px-2 py-0.5 rounded border border-[#00F3FF]/30">
+                    14-Day Free Trial Included
+                  </span>
+                </div>
+
+                <div className="space-y-3 pt-2 text-xs">
+                  <span className="text-[11px] font-mono text-slate-400 uppercase tracking-wider block">
+                    Everything in Starter, plus:
+                  </span>
+                  {[
+                    'Up to 3 Managed Locations',
+                    'Real-Time Disparity & Attribute Drift Alerts',
+                    '60 AI-Drafted Monthly Posts & Campaigns',
+                    'Priority Review De-escalation Alerts',
+                    'Configurable Routine Autopilot Permissions',
+                    'Search & Map Keyword Ranking Insights',
+                    'Emergency Global Safety Pause Cockpit',
+                  ].map((feat, i) => (
+                    <div key={i} className="flex items-start gap-2.5 text-slate-100 font-medium">
+                      <CheckCircle2 className="w-4 h-4 text-[#00F3FF] flex-shrink-0 mt-0.5" />
+                      <span>{feat}</span>
+                    </div>
+                  ))}
+                </div>
               </div>
-              <div>
-                <span className="text-slate-400 text-[10px] block">Drafts</span>
-                <span className="text-white font-bold">{planConfig.entitlements.monthlyDraftsQuota}/mo</span>
-              </div>
-              <div>
-                <span className="text-slate-400 text-[10px] block">Automated Tasks</span>
-                <span className="text-white font-bold">{planConfig.entitlements.monthlyAutomatedActionsQuota}/mo</span>
+
+              <div className="pt-8">
+                <button
+                  onClick={() => onOpenAuth('register', 'growth')}
+                  className="w-full py-3.5 bg-gradient-to-r from-[#00F3FF] to-blue-500 hover:from-[#00F3FF]/90 text-[#0b0f26] font-black text-xs rounded-xl shadow-lg shadow-[#00F3FF]/25 transition-all flex items-center justify-center gap-2 cursor-pointer focus-visible:ring-2 focus-visible:ring-white"
+                >
+                  <span>Start 14-Day Free Trial</span>
+                  <ArrowRight className="w-3.5 h-3.5" />
+                </button>
               </div>
             </div>
 
-            {/* Checkout Action & Safety Notice */}
-            <div className="space-y-3">
-              <button
-                onClick={onStartOnboarding}
-                className="w-full py-4 bg-gradient-to-r from-[#00F3FF] to-blue-500 hover:from-[#00F3FF]/90 text-[#0b0f26] font-black text-sm rounded-xl shadow-xl shadow-[#00F3FF]/20 flex items-center justify-center gap-2 transition-all cursor-pointer"
-              >
-                <span>Get Started with 14-Day Guided Onboarding</span>
-                <ArrowRight className="w-4 h-4" />
-              </button>
-              <p className="text-center text-[11px] text-slate-400">
-                Credit card is not charged during test mode preview. Workspaces receive isolated sandbox data and inspection drafts immediately.
-              </p>
+            {/* Package 3: Enterprise */}
+            <div className="bg-[#18204c] border border-slate-700/80 hover:border-[#D4AF37]/50 rounded-3xl p-8 flex flex-col justify-between transition-all relative">
+              <div className="space-y-6">
+                <div>
+                  <span className="text-xs font-mono text-[#D4AF37] uppercase font-bold tracking-wider">
+                    Scale & Governance
+                  </span>
+                  <h3 className="text-2xl font-bold text-white mt-1">Enterprise Workforce</h3>
+                  <p className="text-xs text-slate-300 mt-2 leading-relaxed">
+                    Custom digital workforce architecture for multi-unit operators requiring tailored agent instructions and role governance.
+                  </p>
+                </div>
+
+                <div className="pt-2 border-t border-slate-800">
+                  <div className="flex items-baseline gap-1">
+                    <span className="text-4xl font-black text-white">$199</span>
+                    <span className="text-xs text-slate-400">/ month</span>
+                  </div>
+                  <span className="inline-block mt-1 text-[11px] text-[#D4AF37] font-semibold bg-[#D4AF37]/10 px-2 py-0.5 rounded border border-[#D4AF37]/30">
+                    14-Day Free Trial Included
+                  </span>
+                </div>
+
+                <div className="space-y-3 pt-2 text-xs">
+                  <span className="text-[11px] font-mono text-slate-400 uppercase tracking-wider block">
+                    Everything in Growth, plus:
+                  </span>
+                  {[
+                    'Up to 10 Managed Business Locations',
+                    'Multi-Agent Operations Architecture',
+                    '150 AI-Drafted Monthly Posts & Promotions',
+                    'Custom Brand Tone & Guardrails Engine',
+                    'Multi-User Team Role Permissions',
+                    'Priority Task Processing Queue',
+                    'Concierge Onboarding & Account Assistance',
+                  ].map((feat, i) => (
+                    <div key={i} className="flex items-start gap-2.5 text-slate-200">
+                      <CheckCircle2 className="w-4 h-4 text-[#D4AF37] flex-shrink-0 mt-0.5" />
+                      <span>{feat}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div className="pt-8">
+                <button
+                  onClick={() => onOpenAuth('register', 'enterprise')}
+                  className="w-full py-3.5 bg-[#25336e] hover:bg-[#324594] text-white font-bold text-xs rounded-xl transition-all flex items-center justify-center gap-2 cursor-pointer border border-[#D4AF37]/40 focus-visible:ring-2 focus-visible:ring-[#D4AF37]"
+                >
+                  <span>Start 14-Day Free Trial</span>
+                  <ArrowRight className="w-3.5 h-3.5 text-[#D4AF37]" />
+                </button>
+              </div>
             </div>
+          </div>
+
+          {/* Bottom Trial & Release Guarantee */}
+          <div className="mt-12 text-center text-xs text-slate-400 max-w-2xl mx-auto space-y-2">
+            <div className="flex items-center justify-center gap-6 text-slate-300 font-medium">
+              <span className="flex items-center gap-1.5">
+                <ShieldCheck className="w-4 h-4 text-emerald-400" /> Instant Trial Authorization
+              </span>
+              <span className="flex items-center gap-1.5">
+                <Lock className="w-4 h-4 text-[#00F3FF]" /> Zero Mock Data Guarantee
+              </span>
+            </div>
+            <p>
+              Credit card is not charged during development preview mode. When you sign up and select your plan, you are released immediately into the control center to configure your real business data.
+            </p>
           </div>
         </div>
       </section>
@@ -565,40 +729,84 @@ export function PublicLandingPage({
       </section>
 
       {/* Footer */}
-      <footer className="py-12 bg-[#080c20] text-xs text-slate-400">
-        <div className="max-w-7xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-6">
-          <div className="flex items-center gap-3">
-            <Sparkles className="w-4 h-4 text-[#D4AF37]" />
-            <span className="font-semibold text-white">Arthur’s AI Workforce</span>
-            <span className="text-slate-500">|</span>
-            <span>Google Business Profile Automation</span>
+      <footer className="py-12 bg-[#080c20] text-xs text-slate-400 border-t border-slate-800/80">
+        <div className="max-w-7xl mx-auto px-4 space-y-6">
+          <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+            <div className="space-y-1">
+              <div className="flex items-center gap-3">
+                <Sparkles className="w-4 h-4 text-[#D4AF37]" aria-hidden="true" />
+                <span className="font-bold text-white text-sm">Arthur’s AI Workforce</span>
+                <span className="text-slate-600">|</span>
+                <span>Google Business Profile Automation</span>
+              </div>
+              <p className="text-[11px] text-slate-400 max-w-xl">
+                Operated by <strong className="text-slate-300">Velo Website Development LLC, operating as Arthur’s Creatives</strong>. Contact: <a href="mailto:arthurscreatives@gmail.com" className="text-[#00F3FF] hover:underline focus-visible:ring-1 focus-visible:ring-[#00F3FF]">arthurscreatives@gmail.com</a>
+              </p>
+            </div>
+
+            <div className="flex items-center gap-3">
+              <button
+                type="button"
+                onClick={onOpenAdmin}
+                className="px-3 py-1.5 bg-[#111738] hover:bg-[#18204c] text-[#D4AF37] border border-[#D4AF37]/40 rounded-xl transition-colors cursor-pointer flex items-center gap-1.5 font-semibold text-xs focus-visible:ring-2 focus-visible:ring-[#D4AF37] focus:outline-none"
+              >
+                <Lock className="w-3.5 h-3.5" aria-hidden="true" />
+                <span>Arthur Owner Portal</span>
+              </button>
+            </div>
           </div>
 
-          <div className="flex flex-wrap items-center gap-6">
-            <button
-              onClick={() => onOpenLegal('terms')}
-              className="hover:text-slate-200 transition-colors cursor-pointer"
-            >
-              Terms of Service (Draft)
-            </button>
-            <button
-              onClick={() => onOpenLegal('privacy')}
-              className="hover:text-slate-200 transition-colors cursor-pointer"
-            >
-              Privacy Policy (Draft)
-            </button>
-            <button
-              onClick={() => onOpenLegal('support')}
-              className="hover:text-slate-200 transition-colors cursor-pointer"
-            >
-              Customer Support
-            </button>
-            <button
-              onClick={onOpenAdmin}
-              className="text-[#D4AF37] hover:underline transition-colors cursor-pointer flex items-center gap-1 font-semibold"
-            >
-              <Lock className="w-3 h-3" /> Arthur Owner Portal
-            </button>
+          <div className="pt-6 border-t border-slate-800/80 flex flex-wrap items-center justify-between gap-4 text-xs">
+            <div className="flex flex-wrap items-center gap-x-6 gap-y-2">
+              <button
+                type="button"
+                onClick={() => onOpenLegal('terms')}
+                className="hover:text-white transition-colors cursor-pointer focus-visible:ring-1 focus-visible:ring-[#00F3FF] rounded"
+              >
+                Terms of Service (Draft)
+              </button>
+              <button
+                type="button"
+                onClick={() => onOpenLegal('privacy')}
+                className="hover:text-white transition-colors cursor-pointer focus-visible:ring-1 focus-visible:ring-[#00F3FF] rounded"
+              >
+                Privacy Policy (Draft)
+              </button>
+              <button
+                type="button"
+                onClick={() => onOpenLegal('billing')}
+                className="hover:text-white transition-colors cursor-pointer focus-visible:ring-1 focus-visible:ring-[#00F3FF] rounded"
+              >
+                Billing & Refunds (Draft)
+              </button>
+              <button
+                type="button"
+                onClick={() => onOpenLegal('accessibility')}
+                className="hover:text-white transition-colors cursor-pointer focus-visible:ring-1 focus-visible:ring-[#00F3FF] rounded"
+              >
+                Accessibility Statement
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  window.dispatchEvent(new CustomEvent('open_arthur_cookie_settings'));
+                }}
+                className="hover:text-white transition-colors cursor-pointer focus-visible:ring-1 focus-visible:ring-[#00F3FF] rounded text-[#00F3FF]"
+              >
+                Cookie Settings
+              </button>
+              <button
+                type="button"
+                onClick={() => onOpenLegal('support')}
+                className="hover:text-white transition-colors cursor-pointer focus-visible:ring-1 focus-visible:ring-[#00F3FF] rounded"
+              >
+                Customer Support & Identity
+              </button>
+            </div>
+
+            <div className="text-[11px] text-slate-500">
+              © 2026 Velo Website Development LLC. All rights reserved.
+            </div>
           </div>
         </div>
       </footer>

@@ -39,6 +39,7 @@ interface AuditRepairsTabProps {
   onRunInspectionNow: () => void;
   isInspecting: boolean;
   onPrepareAIRepair?: (finding: InspectorFinding) => Promise<void>;
+  recentlyVerifiedId?: string | null;
 }
 
 export function AuditRepairsTab({
@@ -54,6 +55,7 @@ export function AuditRepairsTab({
   onRunInspectionNow,
   isInspecting,
   onPrepareAIRepair,
+  recentlyVerifiedId,
 }: AuditRepairsTabProps) {
   const [activeSubSection, setActiveSubSection] = useState<'proposals' | 'findings' | 'analyst'>('proposals');
   const [applyingId, setApplyingId] = useState<string | null>(null);
@@ -298,18 +300,26 @@ export function AuditRepairsTab({
                   proposal.status === 'confirmed_by_api' ||
                   proposal.status === 'publicly_verified';
                 const hasConflict = conflictNotice?.id === proposal.id;
+                const isRecentlyVerified = recentlyVerifiedId === proposal.id;
 
                 return (
                   <div
                     key={proposal.id}
-                    className={`bg-[#18204c] border rounded-2xl p-5 md:p-6 transition-all shadow-md ${
-                      isApplied
+                    className={`border rounded-2xl p-5 md:p-6 transition-all shadow-md relative overflow-hidden ${
+                      isRecentlyVerified
+                        ? 'animate-verified-glow ring-2 ring-emerald-400 bg-[#142345]'
+                        : isApplied
                         ? 'border-emerald-500/40 bg-[#162145]'
                         : proposal.isProtectedField
-                        ? 'border-[#D4AF37]/50'
-                        : 'border-slate-800'
+                        ? 'border-[#D4AF37]/50 bg-[#18204c]'
+                        : 'border-slate-800 bg-[#18204c]'
                     }`}
                   >
+                    {/* Top Accent Line on Verification */}
+                    {isRecentlyVerified && (
+                      <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-emerald-400 via-[#00F3FF] to-[#D4AF37] animate-pulse" />
+                    )}
+
                     {/* Proposal Header */}
                     <div className="flex flex-wrap items-start justify-between gap-2 mb-3">
                       <div>
@@ -335,27 +345,29 @@ export function AuditRepairsTab({
 
                       {/* Status indicator */}
                       <div>
-                        {proposal.status === 'proposed' && (
+                        {isRecentlyVerified ? (
+                          <span className="text-xs font-black px-3 py-1 rounded-full bg-emerald-500/25 text-emerald-300 border border-emerald-400 flex items-center gap-1.5 shadow-[0_0_15px_rgba(16,185,129,0.4)] animate-pulse">
+                            <Sparkles className="w-3.5 h-3.5 text-[#00F3FF]" />
+                            Just Verified with Google
+                          </span>
+                        ) : proposal.status === 'proposed' ? (
                           <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-slate-700 text-slate-200">
                             Awaiting Authorization
                           </span>
-                        )}
-                        {proposal.status === 'confirmed_by_api' && (
+                        ) : proposal.status === 'confirmed_by_api' ? (
                           <span className="text-xs font-bold px-2.5 py-1 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 flex items-center gap-1">
                             <CheckCircle2 className="w-3.5 h-3.5" />
                             Confirmed by API
                           </span>
-                        )}
-                        {proposal.status === 'publicly_verified' && (
+                        ) : proposal.status === 'publicly_verified' ? (
                           <span className="text-xs font-bold px-2.5 py-1 rounded-full bg-[#00F3FF]/20 text-[#00F3FF] border border-[#00F3FF]/40">
                             Publicly Verified
                           </span>
-                        )}
-                        {proposal.status === 'conflict_detected' && (
+                        ) : proposal.status === 'conflict_detected' ? (
                           <span className="text-xs font-bold px-2.5 py-1 rounded-full bg-rose-500/20 text-rose-300 border border-rose-500/40">
                             Conflict Flagged
                           </span>
-                        )}
+                        ) : null}
                       </div>
                     </div>
 

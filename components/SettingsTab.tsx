@@ -393,7 +393,7 @@ export function SettingsTab({
                       notifications: {
                         externalDeliveryEnabled: e.target.checked,
                         notificationEmail:
-                          formData.notifications?.notificationEmail || formData.ownerEmail || 'arthurscreatives@gmail.com',
+                          formData.notifications?.notificationEmail || formData.ownerEmail || '',
                       },
                     })
                   }
@@ -419,7 +419,7 @@ export function SettingsTab({
                         },
                       })
                     }
-                    placeholder="arthurscreatives@gmail.com"
+                    placeholder="e.g. alerts@yourbusiness.com"
                     className="w-full bg-[#0b0f26] border border-slate-700 rounded-lg p-2.5 text-xs text-white font-mono outline-none focus:border-[#00F3FF]"
                   />
                   <span className="text-[10px] text-slate-400 block">
@@ -523,15 +523,21 @@ export function SettingsTab({
             </div>
 
             {onDisconnectGoogle && (
-              <div className="pt-2 border-t border-slate-800 flex items-center justify-between">
-                <span className="text-[11px] text-slate-400">Google Compliance:</span>
-                <button
-                  type="button"
-                  onClick={onDisconnectGoogle}
-                  className="px-3 py-1.5 bg-rose-500/10 hover:bg-rose-500/20 text-rose-300 border border-rose-500/30 rounded-lg text-xs font-semibold cursor-pointer transition-colors"
-                >
-                  Disconnect & Purge Google Tokens
-                </button>
+              <div className="pt-2 border-t border-slate-800 space-y-2">
+                <div className="p-2.5 bg-[#0b0f26] rounded-lg border border-slate-800 text-[11px] text-slate-400">
+                  <strong className="text-amber-300 block mb-0.5">Separate Action Notice:</strong>
+                  Disconnecting your Google Business Profile halts background automation and purges stored OAuth tokens immediately, but does <em>not</em> cancel an active Stripe subscription. Manage or cancel subscriptions in your Billing settings.
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-[11px] text-slate-400">Google Compliance:</span>
+                  <button
+                    type="button"
+                    onClick={onDisconnectGoogle}
+                    className="px-3 py-1.5 bg-rose-500/10 hover:bg-rose-500/20 text-rose-300 border border-rose-500/30 rounded-lg text-xs font-semibold cursor-pointer transition-colors focus-visible:ring-2 focus-visible:ring-rose-400 focus:outline-none"
+                  >
+                    Disconnect & Purge Google Tokens
+                  </button>
+                </div>
               </div>
             )}
           </div>

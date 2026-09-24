@@ -60,13 +60,10 @@ export function CustomerOnboardingWizard({
   );
   
   // Facts Form
-  const [factsPhone, setFactsPhone] = useState(currentWorkspace?.approvedFacts.phoneNumber || '(555) 349-2041');
-  const [factsWebsite, setFactsWebsite] = useState(currentWorkspace?.approvedFacts.websiteUri || 'https://example.com');
-  const [factsCategory, setFactsCategory] = useState(currentWorkspace?.approvedFacts.primaryCategory || 'Local Business');
-  const [factsDesc, setFactsDesc] = useState(
-    currentWorkspace?.approvedFacts.description ||
-      'Dedicated local business delivering verified quality service with consistent operating hours and customer satisfaction.'
-  );
+  const [factsPhone, setFactsPhone] = useState(currentWorkspace?.approvedFacts.phoneNumber || '');
+  const [factsWebsite, setFactsWebsite] = useState(currentWorkspace?.approvedFacts.websiteUri || '');
+  const [factsCategory, setFactsCategory] = useState(currentWorkspace?.approvedFacts.primaryCategory || '');
+  const [factsDesc, setFactsDesc] = useState(currentWorkspace?.approvedFacts.description || '');
 
   // Automation Choices
   const [automationMode, setAutomationMode] = useState<'review_first' | 'routine_autopilot'>('review_first');
@@ -140,7 +137,12 @@ export function CustomerOnboardingWizard({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[#0b0f26]/85 backdrop-blur-md animate-in fade-in duration-200">
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-label={`Customer Onboarding Wizard - Step ${step} of 8`}
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[#0b0f26]/85 backdrop-blur-md animate-in fade-in duration-200"
+    >
       <div className="relative w-full max-w-2xl bg-[#18204c] border border-slate-700 rounded-3xl p-6 sm:p-8 shadow-2xl flex flex-col max-h-[90vh]">
         {/* Header with Progress Steps */}
         <div className="flex items-center justify-between pb-4 border-b border-slate-800">
@@ -153,8 +155,10 @@ export function CustomerOnboardingWizard({
             </span>
           </div>
           <button
+            type="button"
             onClick={onClose}
-            className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-[#111738] transition-colors cursor-pointer"
+            aria-label="Close onboarding wizard"
+            className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-[#111738] transition-colors cursor-pointer focus-visible:ring-2 focus-visible:ring-[#00F3FF] focus:outline-none"
           >
             <X className="w-5 h-5" />
           </button>
@@ -176,7 +180,7 @@ export function CustomerOnboardingWizard({
                     type="text"
                     value={name}
                     onChange={(e) => setName(e.target.value)}
-                    placeholder="Elena Vance"
+                    placeholder="e.g. Alex Morgan"
                     className="w-full mt-1 px-3.5 py-2.5 bg-[#111738] border border-slate-700 rounded-xl text-xs text-white"
                   />
                 </div>
@@ -186,7 +190,7 @@ export function CustomerOnboardingWizard({
                     type="email"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    placeholder="elena@summitwellness.com"
+                    placeholder="e.g. alex@yourbusiness.com"
                     className="w-full mt-1 px-3.5 py-2.5 bg-[#111738] border border-slate-700 rounded-xl text-xs text-white"
                   />
                 </div>
@@ -207,7 +211,7 @@ export function CustomerOnboardingWizard({
                   type="text"
                   value={businessName}
                   onChange={(e) => setBusinessName(e.target.value)}
-                  placeholder="Summit Wellness & Physical Therapy"
+                  placeholder="e.g. Metro Dental Clinic"
                   className="w-full mt-1 px-3.5 py-2.5 bg-[#111738] border border-slate-700 rounded-xl text-xs text-white"
                 />
               </div>
@@ -331,8 +335,8 @@ export function CustomerOnboardingWizard({
                     <MapPin className="w-5 h-5" />
                   </div>
                   <div>
-                    <h4 className="text-xs font-bold text-white">{businessName || 'Summit Wellness & Physical Therapy'}</h4>
-                    <p className="text-[11px] text-slate-400">Primary Location • Location ID: locations/1092830192</p>
+                    <h4 className="text-xs font-bold text-white">{businessName || 'Your Business Location'}</h4>
+                    <p className="text-[11px] text-slate-400">Primary Location • Connected Workspace</p>
                   </div>
                 </div>
                 <span className="text-xs font-semibold text-emerald-400 flex items-center gap-1">

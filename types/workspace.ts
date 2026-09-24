@@ -47,6 +47,34 @@ export interface WorkspaceSubscription {
   billingInterval: 'month' | 'year';
   priceInCents: number; // Configurable by Arthur
   isConfiguredByArthur: boolean; // Flag indicating if Arthur finalized pricing
+  // 7-day trial & $1 credit card verification
+  cardVerified?: boolean;
+  cardLast4?: string;
+  cardBrand?: string;
+  trialEndsAt?: string;
+  trialStartedAt?: string;
+  verificationHoldCents?: number;
+}
+
+export interface SubscriptionTier {
+  id: 'starter' | 'growth' | 'scale';
+  name: string;
+  tagline: string;
+  description: string;
+  badge?: string;
+  isPopular?: boolean;
+  monthlyPriceInCents: number;
+  annualPriceInCents: number;
+  trialDays: number; // 7
+  verificationHoldCents: number; // 100 ($1.00)
+  features: string[];
+  entitlements: {
+    maxLocations: number;
+    monthlyAiAnalysesQuota: number;
+    monthlyDraftsQuota: number;
+    monthlyAutomatedActionsQuota: number;
+    maxStoredMediaMb: number;
+  };
 }
 
 export interface WorkspaceEntitlements {

@@ -18,15 +18,6 @@ interface RateLimitEntry {
 }
 const rateLimits = new Map<string, RateLimitEntry>();
 
-// Arthur's default active session token for initial access
-const DEFAULT_OWNER_TOKEN = 'arthur_owner_session_token_prod_2026';
-sessions.set(DEFAULT_OWNER_TOKEN, {
-  userId: 'user-arthur-owner',
-  workspaceId: 'ws-arthur-creatives',
-  createdAt: Date.now(),
-  expiresAt: Date.now() + 30 * 24 * 60 * 60 * 1000,
-});
-
 export function createSession(userId: string, workspaceId: string): string {
   const token = `sess_${Date.now()}_${Math.random().toString(36).substring(2)}${Math.random().toString(36).substring(2)}`;
   sessions.set(token, {
@@ -114,18 +105,12 @@ export function resolveAuth(req: Request | NextRequest): {
     }
   }
 
-  // Fallback for seamless local evaluation: if no token is passed, default to Arthur's owner session
   if (!token) {
-    token = DEFAULT_OWNER_TOKEN;
+    return null;
   }
 
   const data = getSessionData(token);
   if (!data) {
-    // If invalid token passed, try Arthur's owner session
-    const ownerData = getSessionData(DEFAULT_OWNER_TOKEN);
-    if (ownerData) {
-      return { ...ownerData, token: DEFAULT_OWNER_TOKEN };
-    }
     return null;
   }
 
@@ -188,8 +173,4 @@ export function redactSecretsFromText(text: string): string {
     .replace(/(ya29\.[a-zA-Z0-9_-]{20,})/g, '[REDACTED_GOOGLE_TOKEN]')
     .replace(/("client_secret":\s*")[^"]+(")/g, '$1[REDACTED]$2')
     .replace(/("password":\s*")[^"]+(")/g, '$1[REDACTED]$2');
-}
-
-export function getDefaultOwnerToken(): string {
-  return DEFAULT_OWNER_TOKEN;
 }

@@ -10,11 +10,13 @@ import {
   History,
   Settings,
   Sliders,
+  Bot,
 } from 'lucide-react';
 
 export type NavTabId =
   | 'overview'
   | 'operations'
+  | 'workforce_chat'
   | 'business_profile'
   | 'audit_repairs'
   | 'search_insights'
@@ -53,6 +55,13 @@ export function Navigation({
       icon: Sliders,
       badge: pendingOperationsCount > 0 ? pendingOperationsCount : undefined,
       badgeColor: 'bg-amber-400 text-[#0b0f26] font-bold',
+    },
+    {
+      id: 'workforce_chat',
+      label: 'AI Agents & Chat',
+      icon: Bot,
+      badge: undefined,
+      badgeColor: 'bg-[#00F3FF] text-[#0b0f26]',
     },
     { id: 'business_profile', label: 'Business Profile', icon: Building2 },
     {

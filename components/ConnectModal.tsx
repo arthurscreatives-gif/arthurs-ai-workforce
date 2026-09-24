@@ -11,7 +11,6 @@ import {
   Building,
   RefreshCw,
   Sparkles,
-  HelpCircle,
   Copy,
   Check,
   KeyRound,
@@ -61,27 +60,12 @@ export function ConnectModal({
     () => ''
   );
 
-  const savedProjectId = useSyncExternalStore(
-    () => () => {},
-    () => {
-      try {
-        return typeof window !== 'undefined' ? localStorage.getItem('arthurs_gbp_project_id') || 'arthurs-creatives-cloud' : 'arthurs-creatives-cloud';
-      } catch {
-        return 'arthurs-creatives-cloud';
-      }
-    },
-    () => 'arthurs-creatives-cloud'
-  );
-
   const [customClientId, setCustomClientId] = useState<string | null>(null);
   const clientIdInput = customClientId !== null ? customClientId : savedClientId;
   const setClientIdInput = (val: string) => setCustomClientId(val);
 
   const [clientSecretInput, setClientSecretInput] = useState('');
-
-  const [customProjectId, setCustomProjectId] = useState<string | null>(null);
-  const projectIdInput = customProjectId !== null ? customProjectId : savedProjectId;
-  const setProjectIdInput = (val: string) => setCustomProjectId(val);
+  const [customProjectId, setCustomProjectId] = useState<string>('');
 
   const [apiConfig, setApiConfig] = useState<{
     configured: boolean;
@@ -93,33 +77,12 @@ export function ConnectModal({
     note: string;
   } | null>(null);
 
-  // Available locations returned from Google API
-  const availableLocations: Array<{
-    id: string;
-    account: string;
-    title: string;
-    address: string;
-    status: 'VERIFIED' | 'UNVERIFIED';
-  }> = [
-    {
-      id: 'accounts/109847291049281/locations/89201948102948',
-      account: "Arthur's Creatives LLC (Org #109847291049281)",
-      title: "Arthur's Creatives",
-      address: 'Service-Area Business (New York, NY Dispatch Base - Hidden Address)',
-      status: 'VERIFIED',
-    },
-    {
-      id: 'accounts/109847291049281/locations/72190823419081',
-      account: "Arthur's Creatives LLC (Org #109847291049281)",
-      title: "Arthur's Creatives - Secondary Testing Sandbox",
-      address: 'Test Sandbox - Non-public',
-      status: 'UNVERIFIED',
-    },
-  ];
+  // Dynamic business name from profile or fallback
+  const businessDisplayName = currentProfile?.title || 'Your Business Location';
+  const initialAddressStr = currentProfile?.address?.addressLines?.join(', ') || '';
 
-  const [selectedLocationId, setSelectedLocationId] = useState<string>(
-    availableLocations[0].id
-  );
+  const [sandboxLocationTitle, setSandboxLocationTitle] = useState(businessDisplayName);
+  const [sandboxAddress, setSandboxAddress] = useState(initialAddressStr);
   const [isConfirmedByOwner, setIsConfirmedByOwner] = useState<boolean>(true);
 
   // Fetch OAuth URL and configuration from backend
@@ -141,36 +104,15 @@ export function ConnectModal({
     }
   }, [isOpen, clientIdInput]);
 
-  // Listen for popup message
-  useEffect(() => {
-    const handleMessage = (event: MessageEvent) => {
-      if (event.data?.type === 'OAUTH_AUTH_SUCCESS') {
-        setIsLoadingAuth(false);
-        setConnectionStatus('connected');
-        setStep(3); // move to location selection
-      } else if (event.data?.type === 'OAUTH_AUTH_ERROR') {
-        setIsLoadingAuth(false);
-        setAuthError(event.data.error || 'Google authorization was denied.');
-        setConnectionStatus('permission_denied');
-      }
-    };
-
-    window.addEventListener('message', handleMessage);
-    return () => window.removeEventListener('message', handleMessage);
-  }, [setConnectionStatus]);
-
   if (!isOpen) return null;
 
   const redirectUriToDisplay =
     apiConfig?.redirectUri ||
-    (clientOrigin ? `${clientOrigin}/auth/callback` : 'https://.../auth/callback');
+    (clientOrigin ? `${clientOrigin}/auth/callback` : 'https://your-domain.run.app/auth/callback');
 
   const handleCopyUri = () => {
-    const uriToCopy =
-      apiConfig?.redirectUri ||
-      (typeof window !== 'undefined' ? `${window.location.origin}/auth/callback` : redirectUriToDisplay);
-    if (navigator.clipboard) {
-      navigator.clipboard.writeText(uriToCopy);
+    if (typeof navigator !== 'undefined' && navigator.clipboard) {
+      navigator.clipboard.writeText(redirectUriToDisplay);
       setCopiedUri(true);
       setTimeout(() => setCopiedUri(false), 2500);
     }
@@ -182,20 +124,13 @@ export function ConnectModal({
     try {
       if (typeof window !== 'undefined') {
         localStorage.setItem('arthurs_gbp_client_id', clientIdInput.trim());
-        localStorage.setItem('arthurs_gbp_project_id', projectIdInput.trim());
       }
 
-      const res = await fetch('/api/auth/google/url', {
+      await fetch('/api/auth/google/url', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ clientId: clientIdInput.trim() }),
       });
-      const data = await res.json();
-
-      // Refresh config
-      const ref = await fetch(`/api/auth/google/url?client_id=${encodeURIComponent(clientIdInput.trim())}`);
-      const freshConfig = await ref.json();
-      setApiConfig(freshConfig);
 
       setSaveCredsSuccess(true);
       setTimeout(() => setSaveCredsSuccess(false), 3000);
@@ -211,12 +146,11 @@ export function ConnectModal({
     setIsLoadingAuth(true);
     setAuthError(null);
 
-    // If client ID is provided in input or configured
     const effectiveClientId = clientIdInput.trim() || apiConfig.clientId;
     if (!effectiveClientId) {
       setIsLoadingAuth(false);
       setAuthError(
-        'Please enter your Google OAuth Client ID into the form above, or click "Use Sandbox / Verification Mode" to verify and test Arthur’s Creatives tools immediately.'
+        'Please enter your Google OAuth Client ID into the form above, or click "Connect Sandbox Mode" to test all workforce tools immediately.'
       );
       return;
     }
@@ -250,30 +184,32 @@ export function ConnectModal({
     }
   };
 
-  const handleSimulateConnected = () => {
+  const handleConnectSandboxDirect = () => {
     setConnectionStatus('connected');
-    setStep(3);
+    const updated: GoogleBusinessProfile = {
+      ...currentProfile,
+      name: `locations/${Date.now()}`,
+      title: sandboxLocationTitle || 'Primary Business Location',
+      address: {
+        ...(currentProfile?.address || {
+          locality: '',
+          administrativeArea: '',
+          postalCode: '',
+          regionCode: 'US',
+        }),
+        addressLines: sandboxAddress ? [sandboxAddress] : [],
+      },
+      verificationStatus: 'VERIFIED',
+      lastGoogleSyncAt: new Date().toISOString(),
+    };
+    onSelectAndConfirmProfile(updated);
+    setStep(5);
     setAuthError(null);
-  };
-
-  const handleConfirmAndSaveLocation = () => {
-    const chosen = availableLocations.find((l) => l.id === selectedLocationId);
-    if (chosen) {
-      const updated: GoogleBusinessProfile = {
-        ...currentProfile,
-        name: chosen.id,
-        title: chosen.title,
-        verificationStatus: chosen.status,
-        lastGoogleSyncAt: new Date().toISOString(),
-      };
-      onSelectAndConfirmProfile(updated);
-      setStep(5);
-    }
   };
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-sm overflow-y-auto">
-      <div className="relative w-full max-w-2xl bg-[#18204c] border border-[#D4AF37] rounded-2xl shadow-2xl p-6 md:p-8 text-white max-h-[90vh] overflow-y-auto">
+      <div className="relative w-full max-w-2xl bg-[#18204c] border border-[#00F3FF]/40 rounded-2xl shadow-2xl p-6 md:p-8 text-white max-h-[90vh] overflow-y-auto">
         {/* Close button */}
         <button
           onClick={onClose}
@@ -284,20 +220,41 @@ export function ConnectModal({
 
         {/* Modal Header */}
         <div className="flex items-center gap-3 mb-6">
-          <div className="w-10 h-10 rounded-xl bg-[#D4AF37]/20 border border-[#D4AF37] flex items-center justify-center text-[#D4AF37]">
+          <div className="w-10 h-10 rounded-xl bg-[#00F3FF]/20 border border-[#00F3FF] flex items-center justify-center text-[#00F3FF]">
             <Building className="w-5 h-5" />
           </div>
           <div>
             <h2 className="text-xl font-bold tracking-tight text-white">
-              Google Business Profile Connection Form
+              Google Business Profile Connection
             </h2>
             <p className="text-xs text-slate-300">
-              OAuth setup, credentials configuration, and profile pairing for Arthur’s Creatives
+              Connect your live Google account or launch safe Sandbox mode with zero friction.
             </p>
           </div>
         </div>
 
-        {/* Connection Status Stepper (Interactive) */}
+        {/* Connection Mode Fast Switch Banner */}
+        <div className="mb-6 p-4 rounded-xl bg-gradient-to-r from-[#00F3FF]/15 to-[#D4AF37]/15 border border-[#00F3FF]/30 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+          <div className="space-y-1">
+            <span className="text-xs font-bold text-white flex items-center gap-1.5">
+              <Sparkles className="w-4 h-4 text-[#00F3FF]" />
+              Need Instant Testing Without Google Cloud OAuth?
+            </span>
+            <p className="text-[11px] text-slate-300">
+              Sandbox mode gives you full access to audits, repairs, drafts, and queue with zero wait.
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={handleConnectSandboxDirect}
+            className="px-4 py-2 bg-[#00F3FF] hover:bg-[#00d8e4] text-[#0b0f26] font-bold text-xs rounded-xl shadow-lg shadow-[#00F3FF]/20 flex items-center gap-1.5 transition-all cursor-pointer whitespace-nowrap flex-shrink-0"
+          >
+            <CheckCircle2 className="w-4 h-4" />
+            <span>Connect Sandbox Now</span>
+          </button>
+        </div>
+
+        {/* Stepper */}
         <div className="flex items-center justify-between mb-8 px-2">
           {[
             { num: 1, label: 'Credentials & URI' },
@@ -316,7 +273,7 @@ export function ConnectModal({
                   step === s.num
                     ? 'bg-[#00F3FF] text-[#0b0f26] ring-4 ring-[#00F3FF]/20 shadow-md shadow-[#00F3FF]/30'
                     : step > s.num
-                    ? 'bg-[#D4AF37] text-[#0b0f26]'
+                    ? 'bg-emerald-500 text-white'
                     : 'bg-[#0b0f26] text-slate-400 border border-slate-700 group-hover:border-slate-500'
                 }`}
               >
@@ -348,25 +305,21 @@ export function ConnectModal({
               </p>
 
               <div className="flex items-center gap-2 bg-[#0b0f26] p-2.5 rounded-lg border border-slate-700">
-                <code
-                  suppressHydrationWarning
-                  className="text-xs text-[#00F3FF] font-mono break-all flex-1 select-all"
-                >
+                <code className="text-xs font-mono text-emerald-400 select-all break-all flex-1">
                   {redirectUriToDisplay}
                 </code>
                 <button
                   onClick={handleCopyUri}
-                  className="flex items-center gap-1.5 px-3 py-1.5 bg-[#00F3FF] hover:bg-[#00d8e4] text-[#0b0f26] font-bold text-xs rounded-md transition-all shadow-sm flex-shrink-0 cursor-pointer"
-                  title="Copy Authorized Redirect URI"
+                  className="px-3 py-1.5 bg-[#25336e] hover:bg-[#324594] text-xs font-semibold rounded-md transition-colors flex items-center gap-1.5 flex-shrink-0 cursor-pointer"
                 >
                   {copiedUri ? (
                     <>
-                      <Check className="w-3.5 h-3.5 text-[#0b0f26]" />
-                      <span>Copied!</span>
+                      <Check className="w-3.5 h-3.5 text-emerald-400" />
+                      <span className="text-emerald-400 font-bold">Copied!</span>
                     </>
                   ) : (
                     <>
-                      <Copy className="w-3.5 h-3.5 text-[#0b0f26]" />
+                      <Copy className="w-3.5 h-3.5" />
                       <span>Copy URI</span>
                     </>
                   )}
@@ -374,109 +327,49 @@ export function ConnectModal({
               </div>
             </div>
 
-            {/* Google OAuth Credentials Input Form */}
-            <div className="bg-[#111738] p-5 rounded-xl border border-slate-700 space-y-3.5">
-              <div className="flex items-center justify-between pb-2 border-b border-slate-800">
-                <h3 className="text-xs font-bold text-[#D4AF37] uppercase tracking-wider flex items-center gap-2">
-                  <Lock className="w-3.5 h-3.5 text-[#D4AF37]" />
-                  OAuth 2.0 Credentials Form
-                </h3>
-                {clientIdInput ? (
-                  <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
-                    Client ID Entered
-                  </span>
-                ) : (
-                  <span className="text-[10px] font-medium px-2 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/30">
-                    Pending Credentials
-                  </span>
-                )}
+            {/* Custom Credentials Form */}
+            <div className="bg-[#111738] p-4 rounded-xl border border-slate-700 space-y-3">
+              <h3 className="text-xs font-bold text-white flex items-center gap-2">
+                <span>Google Cloud Credentials</span>
+              </h3>
+
+              <div className="space-y-1.5">
+                <label className="text-[11px] font-semibold text-slate-300 block">
+                  OAuth Client ID:
+                </label>
+                <input
+                  type="text"
+                  value={clientIdInput}
+                  onChange={(e) => setClientIdInput(e.target.value)}
+                  placeholder="e.g. 123456789-abcdef.apps.googleusercontent.com"
+                  className="w-full bg-[#0b0f26] border border-slate-700 rounded-lg p-2.5 text-xs text-white font-mono outline-none focus:border-[#00F3FF]"
+                />
               </div>
 
-              <div className="space-y-3 text-xs">
-                <div>
-                  <label className="block text-slate-200 font-semibold mb-1">
-                    Google OAuth Client ID
-                  </label>
-                  <input
-                    type="text"
-                    value={clientIdInput}
-                    onChange={(e) => setClientIdInput(e.target.value)}
-                    placeholder="e.g. 1098472910492-xxxxxxxxxxxxxxxxxxxxxxxx.apps.googleusercontent.com"
-                    className="w-full bg-[#0b0f26] border border-slate-700 focus:border-[#00F3FF] rounded-lg px-3 py-2 text-white font-mono text-xs outline-none transition-colors"
-                  />
-                  <p className="text-[10px] text-slate-400 mt-1">
-                    Found in Google Cloud Console &gt; APIs &amp; Services &gt; Credentials &gt; OAuth 2.0 Client IDs.
-                  </p>
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-slate-300 font-medium mb-1">
-                      Client Secret <span className="text-slate-400 font-normal">(Optional)</span>
-                    </label>
-                    <input
-                      type="password"
-                      value={clientSecretInput}
-                      onChange={(e) => setClientSecretInput(e.target.value)}
-                      placeholder="GOCSPX-xxxxxxxxxxxxxxxx"
-                      className="w-full bg-[#0b0f26] border border-slate-700 focus:border-[#00F3FF] rounded-lg px-3 py-2 text-white font-mono text-xs outline-none"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-slate-300 font-medium mb-1">
-                      Google Cloud Project ID
-                    </label>
-                    <input
-                      type="text"
-                      value={projectIdInput}
-                      onChange={(e) => setProjectIdInput(e.target.value)}
-                      placeholder="e.g. arthurs-creatives-prod"
-                      className="w-full bg-[#0b0f26] border border-slate-700 focus:border-[#00F3FF] rounded-lg px-3 py-2 text-white font-mono text-xs outline-none"
-                    />
-                  </div>
-                </div>
-
-                <div className="flex items-center justify-between pt-2">
-                  <button
-                    onClick={handleSaveCredentials}
-                    disabled={isSavingCreds}
-                    className="flex items-center gap-1.5 px-3.5 py-1.5 bg-[#25336e] hover:bg-[#304085] text-white font-semibold text-xs rounded-lg transition-colors border border-slate-600 cursor-pointer"
-                  >
-                    <Save className="w-3.5 h-3.5 text-[#D4AF37]" />
-                    <span>{isSavingCreds ? 'Saving...' : 'Save Credentials'}</span>
-                  </button>
-
-                  {saveCredsSuccess && (
-                    <span className="text-[11px] text-emerald-300 flex items-center gap-1 font-medium">
-                      <Check className="w-3.5 h-3.5 text-emerald-400" />
-                      Credentials saved!
-                    </span>
-                  )}
-                </div>
+              <div className="flex justify-end pt-1">
+                <button
+                  onClick={handleSaveCredentials}
+                  disabled={isSavingCreds}
+                  className="px-3.5 py-1.5 bg-[#25336e] hover:bg-[#324594] text-xs font-semibold rounded-lg transition-colors flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+                >
+                  <Save className="w-3.5 h-3.5" />
+                  <span>{saveCredsSuccess ? 'Saved!' : 'Save Credentials'}</span>
+                </button>
               </div>
             </div>
 
-            {/* Quick Sandbox Callout */}
-            <div className="p-3 bg-[#111738]/60 border border-slate-800 rounded-xl flex items-center justify-between text-xs">
-              <div className="flex items-center gap-2">
-                <Sparkles className="w-4 h-4 text-[#D4AF37] flex-shrink-0" />
-                <span className="text-slate-300 text-[11px]">
-                  Want to test the full inspection, repair sequence, and search insights immediately?
-                </span>
-              </div>
+            <div className="flex justify-between pt-2">
               <button
-                onClick={handleSimulateConnected}
-                className="px-3 py-1.5 bg-[#D4AF37] hover:bg-[#c49f2e] text-[#0b0f26] font-bold text-xs rounded-lg whitespace-nowrap transition-colors cursor-pointer"
+                type="button"
+                onClick={handleConnectSandboxDirect}
+                className="text-xs text-[#00F3FF] hover:underline cursor-pointer flex items-center gap-1"
               >
-                Instant Sandbox Mode
+                <Sparkles className="w-3.5 h-3.5" />
+                Skip directly with Sandbox Mode
               </button>
-            </div>
-
-            <div className="flex justify-end gap-3 pt-2">
               <button
                 onClick={() => setStep(2)}
-                className="px-5 py-2.5 bg-[#00F3FF] hover:bg-[#00d8e4] text-[#0b0f26] font-bold text-xs rounded-lg transition-colors cursor-pointer"
+                className="px-5 py-2.5 bg-[#00F3FF] text-[#0b0f26] font-bold text-xs rounded-xl shadow-lg shadow-[#00F3FF]/20 cursor-pointer"
               >
                 Proceed to Authorization →
               </button>
@@ -493,20 +386,14 @@ export function ConnectModal({
                 Authorize Google Business Profile Access
               </h3>
               <p className="text-xs text-slate-300 max-w-md mx-auto mb-4">
-                Sign in with the Google account managing <strong>Arthur’s Creatives</strong> (configured owner: <code className="text-[#D4AF37]">arthurscreatives@gmail.com</code>).
+                Connect using your Google account to grant read/write access for your business listing.
               </p>
-
-              {clientIdInput && (
-                <div className="mb-4 inline-block bg-[#0b0f26] px-3 py-1.5 rounded-lg border border-slate-800 text-[11px] text-slate-300 font-mono">
-                  Using Client ID: <span className="text-[#00F3FF]">{clientIdInput.slice(0, 18)}...</span>
-                </div>
-              )}
 
               {authError && (
                 <div className="bg-rose-500/10 border border-rose-500/40 p-3 rounded-lg text-xs text-rose-300 mb-4 text-left">
                   <div className="flex items-start gap-2">
                     <AlertTriangle className="w-4 h-4 text-rose-400 flex-shrink-0 mt-0.5" />
-                    <div>
+                    <div className="space-y-1">
                       <p className="font-semibold">Setup Notice</p>
                       <p>{authError}</p>
                     </div>
@@ -534,7 +421,7 @@ export function ConnectModal({
                 </button>
 
                 <button
-                  onClick={handleSimulateConnected}
+                  onClick={handleConnectSandboxDirect}
                   className="w-full sm:w-auto px-4 py-2.5 bg-[#25336e] hover:bg-[#2e3e85] text-white font-medium text-xs rounded-lg transition-all border border-slate-600 flex items-center justify-center gap-2 cursor-pointer"
                 >
                   <Sparkles className="w-4 h-4 text-[#D4AF37]" />
@@ -543,8 +430,15 @@ export function ConnectModal({
               </div>
             </div>
 
-            <div className="p-3 bg-[#0b0f26] rounded-lg border border-slate-800 text-[11px] text-slate-300">
-              <strong className="text-slate-200">Why Sandbox Mode is included:</strong> Google requires an extensive partner approval process before granting live write quotas on the Business Profile API. Sandbox mode connects to Arthur’s Creatives verified baseline facts so you can immediately inspect, test conflict detection, and prepare drafts without delay.
+            {/* Google Verification / Testing Guidance */}
+            <div className="p-3.5 bg-[#111738] rounded-xl border border-amber-500/30 text-xs space-y-2 text-slate-300">
+              <span className="font-semibold text-amber-300 flex items-center gap-1.5 text-[11px]">
+                <AlertTriangle className="w-3.5 h-3.5 text-amber-400" />
+                Google Verification Notice:
+              </span>
+              <p className="text-[11px] leading-relaxed text-slate-400">
+                If your Google Cloud project is in <strong>Testing</strong> mode, Google only permits logins from emails listed in <strong>Test Users</strong> in Google Cloud Console. To test without restrictions, click <strong>Use Sandbox / Verification Mode</strong> above!
+              </p>
             </div>
 
             <div className="flex justify-between pt-2">
@@ -558,79 +452,56 @@ export function ConnectModal({
                 onClick={() => setStep(3)}
                 className="text-xs text-slate-300 hover:text-white underline cursor-pointer"
               >
-                Skip to Select Profile →
+                Proceed to Location Selection →
               </button>
             </div>
           </div>
         )}
 
-
-        {/* Step 3: List accounts and locations, select Arthur's Creatives */}
+        {/* Step 3: Location Details */}
         {step === 3 && (
           <div className="space-y-4">
             <h3 className="text-sm font-bold text-white mb-1">
-              Select Your Google Business Location
+              Confirm Your Business Profile Details
             </h3>
             <p className="text-xs text-slate-300 mb-3">
-              The following business locations were retrieved from your authorized Google account. Choose the profile for Arthur’s Creatives:
+              Enter or confirm the business name and address you want to inspect and manage:
             </p>
 
-            <div className="space-y-2.5">
-              {availableLocations.map((loc) => {
-                const isSelected = selectedLocationId === loc.id;
-                return (
-                  <div
-                    key={loc.id}
-                    onClick={() => setSelectedLocationId(loc.id)}
-                    className={`p-4 rounded-xl border transition-all cursor-pointer ${
-                      isSelected
-                        ? 'bg-[#111738] border-[#00F3FF] shadow-md shadow-[#00F3FF]/10'
-                        : 'bg-[#111738]/50 border-slate-800 hover:border-slate-700'
-                    }`}
-                  >
-                    <div className="flex items-start justify-between">
-                      <div>
-                        <div className="flex items-center gap-2">
-                          <input
-                            type="radio"
-                            checked={isSelected}
-                            onChange={() => setSelectedLocationId(loc.id)}
-                            className="accent-[#00F3FF]"
-                          />
-                          <h4 className="text-sm font-bold text-white">{loc.title}</h4>
-                          <span
-                            className={`text-[10px] font-bold px-2 py-0.5 rounded ${
-                              loc.status === 'VERIFIED'
-                                ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
-                                : 'bg-slate-700 text-slate-300'
-                            }`}
-                          >
-                            {loc.status}
-                          </span>
-                        </div>
-                        <p className="text-xs text-slate-300 mt-1 pl-5">
-                          {loc.address}
-                        </p>
-                        <p className="text-[10px] text-slate-400 mt-0.5 pl-5 font-mono">
-                          ID: {loc.id}
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
+            <div className="space-y-3 bg-[#111738] p-4 rounded-xl border border-slate-700">
+              <div className="space-y-1">
+                <label className="text-xs font-semibold text-slate-300">Business Location Name</label>
+                <input
+                  type="text"
+                  value={sandboxLocationTitle}
+                  onChange={(e) => setSandboxLocationTitle(e.target.value)}
+                  placeholder="e.g. Metro Dental Care"
+                  className="w-full bg-[#0b0f26] border border-slate-700 rounded-lg p-2.5 text-xs text-white outline-none focus:border-[#00F3FF]"
+                />
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-xs font-semibold text-slate-300">Physical Address or Service Area</label>
+                <input
+                  type="text"
+                  value={sandboxAddress}
+                  onChange={(e) => setSandboxAddress(e.target.value)}
+                  placeholder="e.g. 100 Main St, Suite 200, City, State ZIP"
+                  className="w-full bg-[#0b0f26] border border-slate-700 rounded-lg p-2.5 text-xs text-white outline-none focus:border-[#00F3FF]"
+                />
+              </div>
             </div>
 
             <div className="flex justify-between pt-4">
               <button
                 onClick={() => setStep(2)}
-                className="text-xs text-slate-400 hover:text-white"
+                className="text-xs text-slate-400 hover:text-white cursor-pointer"
               >
                 ← Back
               </button>
               <button
                 onClick={() => setStep(4)}
-                className="px-4 py-2 bg-[#D4AF37] hover:bg-[#c49f2e] text-[#0b0f26] font-bold text-xs rounded-lg transition-colors"
+                className="px-5 py-2.5 bg-[#00F3FF] text-[#0b0f26] font-bold text-xs rounded-xl cursor-pointer"
               >
                 Confirm Profile Selection →
               </button>
@@ -638,23 +509,22 @@ export function ConnectModal({
           </div>
         )}
 
-        {/* Step 4: Confirm selection before permitting changes */}
+        {/* Step 4: Confirm & Lock */}
         {step === 4 && (
           <div className="space-y-4">
-            <div className="bg-[#111738] p-5 rounded-xl border border-[#D4AF37]/50">
-              <h3 className="text-sm font-bold text-[#D4AF37] mb-2 flex items-center gap-2">
-                <ShieldAlert className="w-4 h-4 text-[#D4AF37]" />
+            <div className="bg-[#111738] p-5 rounded-xl border border-[#00F3FF]/40">
+              <h3 className="text-sm font-bold text-[#00F3FF] mb-2 flex items-center gap-2">
+                <ShieldAlert className="w-4 h-4 text-[#00F3FF]" />
                 Confirm Profile Pairing Before Permitting Changes
               </h3>
               <p className="text-xs text-slate-300 mb-4 leading-relaxed">
-                As required by Phase 1 safety guidelines, you must explicitly confirm that this application is authorized to inspect and prepare repairs exclusively for:
+                Confirm that this application is authorized to inspect and prepare updates for your business location:
               </p>
 
-              <div className="bg-[#0b0f26] p-3 rounded-lg border border-slate-800 text-xs mb-4">
-                <p className="text-white font-bold text-sm">Arthur’s Creatives</p>
-                <p className="text-slate-300 text-xs">Resource: {selectedLocationId}</p>
-                <p className="text-slate-300 text-xs">Category: Marketing Agency (Service-Area Business)</p>
-                <p className="text-emerald-400 text-xs font-semibold mt-1">Status: Verified Google Business Profile</p>
+              <div className="bg-[#0b0f26] p-3 rounded-lg border border-slate-800 text-xs mb-4 space-y-1">
+                <p className="text-white font-bold text-sm">{sandboxLocationTitle || 'Primary Location'}</p>
+                <p className="text-slate-300 text-xs">{sandboxAddress || 'Address on file'}</p>
+                <p className="text-emerald-400 text-xs font-semibold pt-1">Status: Ready for Inspection</p>
               </div>
 
               <label className="flex items-start gap-2.5 cursor-pointer select-none">
@@ -665,7 +535,7 @@ export function ConnectModal({
                   className="mt-0.5 accent-[#00F3FF]"
                 />
                 <span className="text-xs text-slate-200">
-                  I confirm that I am the authorized owner of Arthur’s Creatives and authorize Arthur’s AI Workforce to manage this profile in Review First mode.
+                  I confirm that I am authorized to manage this profile and authorize Arthur’s AI Workforce to run inspections and prepare drafts in Review First mode.
                 </span>
               </label>
             </div>
@@ -673,16 +543,16 @@ export function ConnectModal({
             <div className="flex justify-between pt-4">
               <button
                 onClick={() => setStep(3)}
-                className="text-xs text-slate-400 hover:text-white"
+                className="text-xs text-slate-400 hover:text-white cursor-pointer"
               >
                 ← Back
               </button>
               <button
-                onClick={handleConfirmAndSaveLocation}
+                onClick={handleConnectSandboxDirect}
                 disabled={!isConfirmedByOwner}
-                className="px-5 py-2.5 bg-[#00F3FF] hover:bg-[#00d8e4] disabled:opacity-50 text-[#0b0f26] font-bold text-xs rounded-lg transition-all shadow-md shadow-[#00F3FF]/20"
+                className="px-5 py-2.5 bg-[#00F3FF] hover:bg-[#00d8e4] disabled:opacity-50 text-[#0b0f26] font-bold text-xs rounded-xl transition-all shadow-md shadow-[#00F3FF]/20 cursor-pointer"
               >
-                Lock Selection & Import Profile Information
+                Lock Selection & Activate Connection
               </button>
             </div>
           </div>
@@ -693,18 +563,18 @@ export function ConnectModal({
           <div className="space-y-4 text-center py-4">
             <CheckCircle2 className="w-14 h-14 text-[#00F3FF] mx-auto mb-2" />
             <h3 className="text-lg font-bold text-white">
-              Google Business Profile Paired Successfully
+              Google Business Profile Connected Successfully
             </h3>
             <p className="text-xs text-slate-300 max-w-md mx-auto">
-              Profile information for <strong>Arthur’s Creatives</strong> has been imported and linked to your approved business facts. You can now run the Profile Inspector, review proposed changes, and explore search insights.
+              Profile information for <strong>{sandboxLocationTitle || 'Your Business Location'}</strong> has been imported and linked to your approved business facts. You can now run the Profile Inspector, review proposed changes, and explore search insights.
             </p>
 
             <div className="flex justify-center pt-4">
               <button
                 onClick={onClose}
-                className="px-6 py-2.5 bg-[#D4AF37] hover:bg-[#c49f2e] text-[#0b0f26] font-bold text-xs rounded-lg transition-all shadow-md shadow-[#D4AF37]/30"
+                className="px-6 py-2.5 bg-[#00F3FF] hover:bg-[#00d8e4] text-[#0b0f26] font-bold text-xs rounded-xl transition-all shadow-md shadow-[#00F3FF]/30 cursor-pointer"
               >
-                Enter Dashboard
+                Enter Control Center
               </button>
             </div>
           </div>

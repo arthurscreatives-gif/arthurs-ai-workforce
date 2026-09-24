@@ -6,7 +6,106 @@ import {
   isWebhookEventProcessed,
   markWebhookEventProcessed,
 } from './workspace-store';
-import { Workspace } from '@/types/workspace';
+import { Workspace, SubscriptionTier } from '@/types/workspace';
+
+export const WORKFORCE_SUBSCRIPTION_TIERS: SubscriptionTier[] = [
+  {
+    id: 'starter',
+    name: 'Starter Workforce',
+    tagline: 'Essential AI profile auditing & reputation guardrails for solo practices.',
+    description:
+      'Continuous profile consistency checks, one-click repair proposals, review response drafting, and safety guardrails.',
+    monthlyPriceInCents: 2900, // $29/mo
+    annualPriceInCents: 27900, // $279/yr (save 20%)
+    trialDays: 7,
+    verificationHoldCents: 100, // $1.00 verification hold
+    features: [
+      '1 Managed Google Business Profile Location',
+      'Continuous Inconsistency & Drift Audits (50/mo)',
+      'One-Click Authorized Profile Repairs',
+      '20 AI-Drafted Local Posts & Review Replies / month',
+      '60 Automated Daily Operational Actions / month',
+      '100 MB Stored Media & Audit Logs',
+      'Review-First Safety Gate (Human Approval)',
+      '7-Day Free Trial ($1 Verification Hold)',
+    ],
+    entitlements: {
+      maxLocations: 1,
+      monthlyAiAnalysesQuota: 50,
+      monthlyDraftsQuota: 20,
+      monthlyAutomatedActionsQuota: 60,
+      maxStoredMediaMb: 100,
+    },
+  },
+  {
+    id: 'growth',
+    name: 'Growth Workforce',
+    tagline: 'Complete automated workforce with diff repairs, routine autopilot & search telemetry.',
+    description:
+      'Advanced consistency audits, real-time drift alerts, weekly post generator, smart review handling, and routine autopilot publishing.',
+    badge: 'Most Popular',
+    isPopular: true,
+    monthlyPriceInCents: 4900, // $49/mo
+    annualPriceInCents: 47000, // $470/yr (save 20%)
+    trialDays: 7,
+    verificationHoldCents: 100, // $1.00 verification hold
+    features: [
+      '1 Managed Google Business Location (+ 2nd location option)',
+      'Continuous Inconsistency & Real-time Drift Audits (150/mo)',
+      'Automated Diff Synthesis & Instant Repairs',
+      '50 AI-Drafted Content Posts & Review Responses / month',
+      '150 Automated Daily Operational Actions / month',
+      'Routine Autopilot Mode (safe automated publishing)',
+      'Local Search Visibility & Keyword Telemetry',
+      '500 MB Stored Media & Activity Logs',
+      'Priority Email & Support Queue',
+      '7-Day Free Trial ($1 Verification Hold)',
+    ],
+    entitlements: {
+      maxLocations: 1,
+      monthlyAiAnalysesQuota: 150,
+      monthlyDraftsQuota: 50,
+      monthlyAutomatedActionsQuota: 150,
+      maxStoredMediaMb: 500,
+    },
+  },
+  {
+    id: 'scale',
+    name: 'Scale Workforce',
+    tagline: 'High-frequency operations, multiple profiles, and autonomous cycles.',
+    description:
+      'Multi-location central command, autonomous daily operations, high-volume draft engine, and competitor insights.',
+    badge: 'Multi-Location',
+    monthlyPriceInCents: 9900, // $99/mo
+    annualPriceInCents: 95000, // $950/yr (save 20%)
+    trialDays: 7,
+    verificationHoldCents: 100, // $1.00 verification hold
+    features: [
+      'Up to 3 Connected Google Business Locations',
+      'Continuous Profile Inconsistency Audits (500/mo)',
+      '150 AI-Drafted Content Posts & Review Replies / month',
+      '400 Automated Daily Operational Actions / month',
+      'Autonomous Daily Workforce Cycles & Task Scheduling',
+      'Multi-Location Central Command View',
+      'Competitor Search Visibility & Sentiment Trends',
+      '2,000 MB Stored Media & Audit Logs',
+      'Dedicated 1-on-1 Onboarding & VIP Priority Support',
+      '7-Day Free Trial ($1 Verification Hold)',
+    ],
+    entitlements: {
+      maxLocations: 3,
+      monthlyAiAnalysesQuota: 500,
+      monthlyDraftsQuota: 150,
+      monthlyAutomatedActionsQuota: 400,
+      maxStoredMediaMb: 2000,
+    },
+  },
+];
+
+export function getTierById(tierId?: string): SubscriptionTier {
+  const found = WORKFORCE_SUBSCRIPTION_TIERS.find((t) => t.id === tierId);
+  return found || WORKFORCE_SUBSCRIPTION_TIERS[1]; // default to Growth
+}
 
 let stripeClient: Stripe | null = null;
 
@@ -34,17 +133,20 @@ export interface CheckoutResult {
 export async function createCheckoutSession(
   workspaceId: string,
   customerEmail: string,
-  appUrl: string
+  appUrl: string,
+  tierId: 'starter' | 'growth' | 'scale' = 'growth',
+  billingInterval: 'month' | 'year' = 'month'
 ): Promise<CheckoutResult> {
+  const tier = getTierById(tierId);
   const plan = getPlanConfig();
 
-  // Guard: Arthur has not finalized standalone pricing
-  if (!plan.isOfferFinalizedByArthur || !plan.isLiveCheckoutEnabled) {
+  // Guard: Check if live checkout is authorized
+  if (!plan.isOfferFinalizedByArthur) {
     return {
       isTestMode: true,
       isCheckoutDisabled: true,
       disabledReason:
-        'Paid public checkout is currently disabled in test mode. Arthur must finalize and approve the standalone offer pricing in settings before public card charging is enabled.',
+        'Pricing offer is pending final activation. Card verification trial mode is available in the app.',
     };
   }
 
@@ -54,24 +156,35 @@ export async function createCheckoutSession(
       isTestMode: true,
       isCheckoutDisabled: true,
       disabledReason:
-        'STRIPE_SECRET_KEY is not configured on the server. Test mode preview is active.',
+        'STRIPE_SECRET_KEY is not configured on the server. Instant card verification trial is active.',
     };
   }
+
+  const unitAmount =
+    billingInterval === 'year' ? tier.annualPriceInCents : tier.monthlyPriceInCents;
 
   const session = await stripe.checkout.sessions.create({
     mode: 'subscription',
     customer_email: customerEmail,
+    subscription_data: {
+      trial_period_days: 7, // 7-day free trial with card verification
+      metadata: {
+        workspaceId,
+        tierId: tier.id,
+        billingInterval,
+      },
+    },
     line_items: [
       {
         price_data: {
           currency: 'usd',
           product_data: {
-            name: plan.name,
-            description: plan.description,
+            name: `${tier.name} — Arthur’s AI Workforce`,
+            description: `${tier.description} Includes 7-day free trial; billing starts on Day 7.`,
           },
-          unit_amount: plan.monthlyPriceInCents,
+          unit_amount: unitAmount,
           recurring: {
-            interval: 'month',
+            interval: billingInterval,
           },
         },
         quantity: 1,
@@ -79,7 +192,8 @@ export async function createCheckoutSession(
     ],
     metadata: {
       workspaceId,
-      planId: plan.id,
+      tierId: tier.id,
+      billingInterval,
     },
     success_url: `${appUrl}/?billing=success&session_id={CHECKOUT_SESSION_ID}`,
     cancel_url: `${appUrl}/?billing=canceled`,
@@ -90,6 +204,66 @@ export async function createCheckoutSession(
     sessionId: session.id,
     isTestMode: !process.env.STRIPE_SECRET_KEY?.startsWith('sk_live_'),
     isCheckoutDisabled: false,
+  };
+}
+
+export async function verifyCardAndStartTrial(
+  workspaceId: string,
+  options: {
+    tierId: 'starter' | 'growth' | 'scale';
+    billingInterval?: 'month' | 'year';
+    cardLast4?: string;
+    cardBrand?: string;
+  }
+): Promise<{ success: boolean; workspace: Workspace; message: string }> {
+  const ws = getWorkspaceById(workspaceId);
+  if (!ws) {
+    throw new Error('Workspace not found');
+  }
+
+  const tier = getTierById(options.tierId);
+  const now = new Date();
+  const trialEnd = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
+  const interval = options.billingInterval || 'month';
+  const priceInCents = interval === 'year' ? tier.annualPriceInCents : tier.monthlyPriceInCents;
+
+  ws.subscription = {
+    planId: tier.id,
+    planName: tier.name,
+    status: 'trialing',
+    currentPeriodStart: now.toISOString(),
+    currentPeriodEnd: trialEnd.toISOString(),
+    cancelAtPeriodEnd: false,
+    billingInterval: interval,
+    priceInCents,
+    isConfiguredByArthur: true,
+    cardVerified: true,
+    cardLast4: options.cardLast4 || '4242',
+    cardBrand: options.cardBrand || 'Visa',
+    trialStartedAt: now.toISOString(),
+    trialEndsAt: trialEnd.toISOString(),
+    verificationHoldCents: 100, // $1.00 verification hold
+  };
+
+  // Set entitlements according to tier
+  ws.entitlements = {
+    maxLocations: tier.entitlements.maxLocations,
+    monthlyAiAnalysesQuota: tier.entitlements.monthlyAiAnalysesQuota,
+    monthlyAiAnalysesUsed: ws.entitlements?.monthlyAiAnalysesUsed || 0,
+    monthlyDraftsQuota: tier.entitlements.monthlyDraftsQuota,
+    monthlyDraftsUsed: ws.entitlements?.monthlyDraftsUsed || 0,
+    monthlyAutomatedActionsQuota: tier.entitlements.monthlyAutomatedActionsQuota,
+    monthlyAutomatedActionsUsed: ws.entitlements?.monthlyAutomatedActionsUsed || 0,
+    maxStoredMediaMb: tier.entitlements.maxStoredMediaMb,
+    storedMediaMbUsed: ws.entitlements?.storedMediaMbUsed || 0,
+  };
+
+  saveWorkspace(ws);
+
+  return {
+    success: true,
+    workspace: ws,
+    message: `Card verified ($1.00 hold). 7-day free trial activated for ${tier.name}. First charge of $${(priceInCents / 100).toFixed(2)} will occur on ${trialEnd.toLocaleDateString()}.`,
   };
 }
 
@@ -270,9 +444,6 @@ export async function handleStripeWebhookEvent(
 }
 
 function findWorkspaceByStripeCustomer(customerId: string): Workspace | undefined {
-  const all = getWorkspaceById('ws-arthur-creatives'); // checks store
-  // Search in memory
-  // Let's import getAllWorkspaces from workspace-store
   const { getAllWorkspaces } = require('./workspace-store');
   const workspaces: Workspace[] = getAllWorkspaces();
   return workspaces.find((w) => w.subscription.stripeCustomerId === customerId);

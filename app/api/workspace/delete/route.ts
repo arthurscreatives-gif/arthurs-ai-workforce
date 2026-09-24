@@ -10,10 +10,10 @@ export async function POST(req: NextRequest) {
 
   const { user, workspace } = auth;
 
-  // Arthur's owner workspace is protected from accidental deletion
-  if (workspace.id === 'ws-arthur-creatives') {
+  // Owner role workspaces are protected from accidental self-deletion
+  if (workspace.role === 'owner') {
     return NextResponse.json(
-      { error: "Arthur's platform owner workspace cannot be deleted." },
+      { error: "Platform owner workspace cannot be deleted." },
       { status: 400 }
     );
   }

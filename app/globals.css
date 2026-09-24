@@ -41,3 +41,26 @@ body {
 ::-webkit-scrollbar-thumb:hover {
   background: #D4AF37;
 }
+
+/* Subtle success celebration glowing pulse for Google-verified items */
+@keyframes verified-pulse {
+  0%, 100% {
+    box-shadow: 0 0 16px rgba(16, 185, 129, 0.4), 0 0 28px rgba(0, 243, 255, 0.2);
+    border-color: rgba(16, 185, 129, 0.6);
+  }
+  50% {
+    box-shadow: 0 0 32px rgba(16, 185, 129, 0.75), 0 0 48px rgba(0, 243, 255, 0.4);
+    border-color: rgba(0, 243, 255, 0.8);
+  }
+}
+
+.animate-verified-glow {
+  animation: verified-pulse 2s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-verified-glow {
+    animation: none !important;
+    box-shadow: 0 0 20px rgba(16, 185, 129, 0.4) !important;
+  }
+}

@@ -14,6 +14,8 @@ import {
   Info,
   Clock,
   Sparkles,
+  FileText,
+  AlertTriangle,
 } from 'lucide-react';
 import { Workspace, PlanConfig } from '@/types/workspace';
 
@@ -23,6 +25,7 @@ interface BillingModalProps {
   planConfig: PlanConfig;
   onClose: () => void;
   onRefreshWorkspace: () => void;
+  onOpenPolicy?: (tab: 'billing') => void;
 }
 
 export function BillingModal({
@@ -31,6 +34,7 @@ export function BillingModal({
   planConfig,
   onClose,
   onRefreshWorkspace,
+  onOpenPolicy,
 }: BillingModalProps) {
   const [isLoadingCheckout, setIsLoadingCheckout] = useState(false);
   const [isLoadingPortal, setIsLoadingPortal] = useState(false);
@@ -53,7 +57,7 @@ export function BillingModal({
       if (data.isCheckoutDisabled) {
         setNotice(
           data.disabledReason ||
-            'Paid checkout is disabled in test mode until Arthur approves the offer.'
+            'Paid checkout is currently disabled in test mode until Arthur approves the offer.'
         );
       } else if (data.url) {
         window.location.href = data.url;
@@ -88,12 +92,19 @@ export function BillingModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[#0b0f26]/85 backdrop-blur-md animate-in fade-in duration-200">
-      <div className="relative w-full max-w-xl bg-[#18204c] border border-slate-700 rounded-3xl p-6 sm:p-8 shadow-2xl space-y-6">
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="billing-modal-title"
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[#0b0f26]/85 backdrop-blur-md animate-in fade-in duration-200"
+    >
+      <div className="relative w-full max-w-xl bg-[#18204c] border border-slate-700 rounded-3xl p-6 sm:p-8 shadow-2xl space-y-6 max-h-[92vh] overflow-y-auto">
         {/* Close */}
         <button
+          type="button"
           onClick={onClose}
-          className="absolute top-6 right-6 p-2 rounded-xl text-slate-400 hover:text-white hover:bg-[#111738] transition-colors cursor-pointer"
+          aria-label="Close billing management dialog"
+          className="absolute top-6 right-6 p-2 rounded-xl text-slate-400 hover:text-white hover:bg-[#111738] transition-colors cursor-pointer focus-visible:ring-2 focus-visible:ring-[#00F3FF] focus:outline-none"
         >
           <X className="w-5 h-5" />
         </button>
@@ -101,10 +112,12 @@ export function BillingModal({
         {/* Title */}
         <div className="space-y-1">
           <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-[#111738] border border-[#00F3FF]/30 text-[11px] font-mono text-[#00F3FF]">
-            <CreditCard className="w-3 h-3" />
+            <CreditCard className="w-3 h-3" aria-hidden="true" />
             <span>Billing & Subscription Management</span>
           </div>
-          <h2 className="text-xl font-bold text-white">Subscription & Usage Allowances</h2>
+          <h2 id="billing-modal-title" className="text-xl font-bold text-white">
+            Subscription & Usage Allowances
+          </h2>
           <p className="text-xs text-slate-400">
             Workspace: <span className="text-white font-medium">{workspace.name}</span>
           </p>
@@ -112,11 +125,22 @@ export function BillingModal({
 
         {/* Feedback notice */}
         {notice && (
-          <div className="p-3 bg-amber-500/10 border border-amber-500/40 rounded-xl text-xs text-amber-300 flex items-start gap-2">
+          <div
+            role="alert"
+            className="p-3.5 bg-amber-500/10 border border-amber-500/40 rounded-xl text-xs text-amber-300 flex items-start gap-2"
+          >
             <Info className="w-4 h-4 flex-shrink-0 mt-0.5 text-amber-400" />
             <span>{notice}</span>
           </div>
         )}
+
+        {/* Approved Plan Notice */}
+        <div className="p-3 bg-emerald-500/10 border border-emerald-500/30 rounded-xl text-[11px] text-emerald-200 flex items-start gap-2">
+          <CheckCircle2 className="w-4 h-4 text-emerald-400 flex-shrink-0 mt-0.5" />
+          <div>
+            <strong>Approved Subscription Offer:</strong> Standalone package finalized at $49.00 USD/month. Includes 1 managed Google Business location with full inconsistency auditing, automated diffs, content drafting, and review responses.
+          </div>
+        </div>
 
         {/* Subscription Status Card */}
         <div className="bg-[#111738] border border-slate-800 rounded-2xl p-5 space-y-3">
@@ -144,7 +168,7 @@ export function BillingModal({
 
           <div className="pt-2 border-t border-slate-800 flex items-center justify-between text-xs text-slate-400">
             <div className="flex items-center gap-1.5">
-              <Calendar className="w-3.5 h-3.5 text-slate-400" />
+              <Calendar className="w-3.5 h-3.5 text-slate-400" aria-hidden="true" />
               <span>
                 {isOwnerInternal
                   ? 'Access: Perpetual Owner Access'
@@ -152,7 +176,7 @@ export function BillingModal({
               </span>
             </div>
             <span className="text-slate-300 font-semibold">
-              ${Math.round(subscription.priceInCents / 100)} / {subscription.billingInterval}
+              ${Math.round(subscription.priceInCents / 100)} / {subscription.billingInterval} (Recurring)
             </span>
           </div>
         </div>
@@ -235,15 +259,29 @@ export function BillingModal({
           </div>
         </div>
 
-        {/* Subscription Expiry & Cancellation Terms */}
-        <div className="p-3 bg-[#111738] border border-slate-800 rounded-xl text-[11px] text-slate-400 space-y-1">
-          <span className="text-white font-semibold flex items-center gap-1">
-            <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
-            Data Retention & Cancellation Guarantee:
-          </span>
-          <p>
-            Upon cancellation or subscription expiry, all automated background writes stop immediately. You retain 60 days of read-only access to view and export previous audit reports and review logs before data archiving.
+        {/* Recurring Billing Disclosures & Separate Actions Callout */}
+        <div className="p-3.5 bg-[#111738] border border-slate-800 rounded-2xl text-[11px] text-slate-300 space-y-2">
+          <div className="flex items-center gap-1.5 text-white font-semibold">
+            <ShieldCheck className="w-4 h-4 text-emerald-400" aria-hidden="true" />
+            <span>Recurring Billing & Cancellation Terms</span>
+          </div>
+          <p className="text-slate-400 leading-relaxed">
+            Subscriptions automatically renew at $49.00 USD/month until cancelled. You may cancel at any time via the Stripe Customer Portal or by emailing <code className="text-slate-200">arthurscreatives@gmail.com</code>. Cancellation takes effect at the end of your prepaid billing period.
           </p>
+          <div className="p-2.5 bg-[#18204c] rounded-xl border border-slate-700/80 text-[11px] text-amber-300/90 leading-relaxed">
+            <strong>Important Distinction:</strong> Disconnecting your Google Business Profile halts background automation and purges tokens, but does <em>not</em> cancel an active Stripe subscription. Cancelling a subscription stops charges, but does <em>not</em> automatically revoke Google OAuth authorization.
+          </div>
+          <div className="pt-1 flex items-center justify-between text-[11px]">
+            <a
+              href="/billing-policy"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-[#00F3FF] hover:underline flex items-center gap-1 focus-visible:ring-1 focus-visible:ring-[#00F3FF] rounded"
+            >
+              <span>View Full Billing, Cancellation & Refund Policy</span>
+              <ExternalLink className="w-3 h-3" />
+            </a>
+          </div>
         </div>
 
         {/* Actions */}
@@ -253,7 +291,7 @@ export function BillingModal({
               type="button"
               onClick={handleOpenCustomerPortal}
               disabled={isLoadingPortal}
-              className="w-full py-3 bg-[#111738] hover:bg-[#202b66] text-white border border-slate-700 font-semibold text-xs rounded-xl flex items-center justify-center gap-2 transition-colors cursor-pointer"
+              className="w-full py-3 bg-[#111738] hover:bg-[#202b66] text-white border border-slate-700 font-semibold text-xs rounded-xl flex items-center justify-center gap-2 transition-colors cursor-pointer focus-visible:ring-2 focus-visible:ring-[#00F3FF] focus:outline-none"
             >
               <span>{isLoadingPortal ? 'Opening Portal...' : 'Manage Payment Method & Portal'}</span>
               <ExternalLink className="w-3.5 h-3.5" />
@@ -263,9 +301,9 @@ export function BillingModal({
               type="button"
               onClick={handleStartCheckout}
               disabled={isLoadingCheckout}
-              className="w-full py-3 bg-gradient-to-r from-[#00F3FF] to-blue-500 hover:from-[#00F3FF]/90 text-[#0b0f26] font-bold text-xs rounded-xl shadow-lg shadow-[#00F3FF]/20 flex items-center justify-center gap-2 transition-all cursor-pointer"
+              className="w-full py-3 bg-gradient-to-r from-[#00F3FF] to-blue-500 hover:from-[#00F3FF]/90 text-[#0b0f26] font-bold text-xs rounded-xl shadow-lg shadow-[#00F3FF]/20 flex items-center justify-center gap-2 transition-all cursor-pointer focus-visible:ring-2 focus-visible:ring-white focus:outline-none"
             >
-              <span>{isLoadingCheckout ? 'Preparing Checkout...' : 'Activate Subscription (Test Mode)'}</span>
+              <span>{isLoadingCheckout ? 'Preparing Checkout...' : 'Activate Subscription ($49/month)'}</span>
               <ArrowRight className="w-3.5 h-3.5" />
             </button>
           ) : (

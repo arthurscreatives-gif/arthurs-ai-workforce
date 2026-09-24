@@ -1,10 +1,21 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { resolveAuth } from '@/lib/auth-session';
 import { getPlanConfig, updatePlanConfig } from '@/lib/workspace-store';
+import { WORKFORCE_SUBSCRIPTION_TIERS } from '@/lib/billing';
 
 export async function GET(req: NextRequest) {
   const plan = getPlanConfig();
-  return NextResponse.json({ plan });
+  return NextResponse.json({
+    plan,
+    tiers: WORKFORCE_SUBSCRIPTION_TIERS,
+    trialConfig: {
+      trialDays: 7,
+      verificationHoldCents: 100, // $1 verification hold
+      currency: 'USD',
+      description:
+        '7-day free trial with $1 credit card verification hold. Card is charged after 7 days.',
+    },
+  });
 }
 
 // Only Arthur (owner) can configure the standalone subscription plan offer
